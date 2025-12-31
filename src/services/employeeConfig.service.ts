@@ -18,6 +18,11 @@ export const createEmployeeConfig = async (payload: CreatePayload) => {
       const rawFrom = payload.fromDate ? new Date(payload.fromDate) : new Date();
       const fromDate = startOfDayUTC(rawFrom);
       const toDate = payload.toDate ? endOfDayUTC(new Date(payload.toDate)) : OPEN_ENDED_DATE;
+      const joiningDate = payload.joiningDate ? new Date(payload.joiningDate) : new Date();
+      const resignationDate = payload.resignationDate ? new Date(payload.resignationDate) : undefined;
+      
+      payload.joiningDate = joiningDate;  
+      payload.resignationDate = resignationDate;  
 
       // Always read the single FixedSalary document (first one) and merge its fields
       const fixed = await FixedSalaryModel.findOne().lean();
@@ -54,7 +59,9 @@ export const createEmployeeConfig = async (payload: CreatePayload) => {
           exitFee: payload.exitFee,
           exitReentryFee: payload.exitReentryFee,
           fromDate,
-          toDate
+          toDate,
+          joiningDate,
+          resignationDate
         }
       ], { session });
     });

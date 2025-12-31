@@ -3,6 +3,7 @@ import cors from "cors";
 import authRoutes from "./routes/auth.routes";
 import fixedSalaryRoutes from "./routes/fixedSalary.routes";
 import employeeConfigRoutes from "./routes/employeeConfig.routes";
+import attendanceRoutes from "./routes/attendance.routes";
 
 const app = express();
 
@@ -12,5 +13,6 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/fixed-salary", fixedSalaryRoutes);
 app.use("/api/employee-config", employeeConfigRoutes);
+app.use("/api/attendance", attendanceRoutes);
 
 export default app;

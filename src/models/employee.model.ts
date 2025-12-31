@@ -9,6 +9,8 @@ export interface EmployeeProfile {
     name: string;
     designation?: string;
     status: "active" | "inactive"
+    joiningDate: Date;
+    resignationDate?: Date
 }
 
 export interface EmployeeProrateSalaryDetails {
@@ -44,8 +46,12 @@ const EmployeeSchema = new Schema<EmployeeConfigDocument>({
     exitFee: { type: Number, required: false }, // optional
     exitReentryFee: { type: Number, required: false }, // optional
 
+    joiningDate: {type: Date, required: true },
+    resignationDate: { type: Date, required: false },
     fromDate: { type: Date, required: true },
     toDate: { type: Date, required: true }
+},{
+    timestamps: true
 });
 
 // Ensure at most one config exists per iqamaNo + toDate
