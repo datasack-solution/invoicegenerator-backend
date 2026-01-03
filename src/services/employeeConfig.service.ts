@@ -8,7 +8,7 @@ type CreatePayload = any;
 const startOfDayUTC = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
 const endOfDayUTC = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 23, 59, 59, 999));
 
-const OPEN_ENDED_DATE = endOfDayUTC(new Date("9999-12-31T00:00:00.000Z"));
+export const OPEN_ENDED_DATE = endOfDayUTC(new Date("9999-12-31T00:00:00.000Z"));
 
 export const createEmployeeConfig = async (payload: CreatePayload) => {
   const session = await mongoose.startSession();

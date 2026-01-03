@@ -94,7 +94,8 @@ export interface Invoice {
     netPayable: number;
 
     generatedAt: Date;
-    replaceAt?: Date
+    replaceAt?: Date;
+    finalizedAt?: Date;  // When the invoice was marked as final
 }
 
 /* ---------- Schema ---------- */
@@ -152,7 +153,8 @@ const InvoiceSchema = new Schema<Invoice>(
         netPayable: Number,
 
         generatedAt: { type: Date, default: Date.now },
-        replaceAt: { type: Date, required: false, default: Date.now }
+        replaceAt: { type: Date, required: false, default: Date.now },
+        finalizedAt: { type: Date, required: false }  // When invoice was marked as final
     },
     { timestamps: true }
 );

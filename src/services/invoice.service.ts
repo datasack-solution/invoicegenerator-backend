@@ -8,19 +8,6 @@ import { FixedSalaryModel } from "../models/fixedSalary.model";
    Utilities
 ============================================================ */
 
-/**
- * Check whether invoice monthYear is the current month-year
- * Example: "January-2026"
- */
-const isSameMonthYear = (monthYear: string, now = new Date()): boolean => {
-  const currentMonthYear = now.toLocaleString("en-US", {
-    month: "long",
-    year: "numeric"
-  }).replace(" ", "-");
-
-  return currentMonthYear === monthYear;
-};
-
 const sum = (values: (number | undefined)[]) =>
   values.reduce((a, b) => (a ?? 0) + (b ?? 0), 0);
 
@@ -103,144 +90,54 @@ const totalDeductions = 0
 
 export class InvoiceService {
   /* ==========================================================
-     Single Invoice Generation
+     Finalize Past Invoices (Efficient Batch Update)
   ========================================================== */
 
-//   static async generateInvoice(params: {
-//     iqamaNo: string;
-//     monthYear: string; // "January-2026"
-//     extraComponents?: InvoiceComponent[];
-//   }) {
-//     const { iqamaNo, monthYear } = params;
-//     const extraComponents = params.extraComponents ?? [];
-
-//     const now = new Date();
-//     const editable = isSameMonthYear(monthYear, now);
-
-//     /* --------------------------------------------
-//        0. Attendance (MANDATORY)
-//     --------------------------------------------- */
-
-//     const attendance = await AttendanceModel.findOne({
-//       iqamaNo,
-//       monthYear
-//     });
-
-//     if (!attendance) {
-//       throw new Error(
-//         `Attendance not found for ${iqamaNo} - ${monthYear}`
-//       );
-//     }
-
-//     const prorationRatio = calculateProrationRatio(
-//       attendance.totalWorkingDays,
-//       attendance.daysPresent
-//     );
-
-//     /* --------------------------------------------
-//        1. Last invoice (for replace / lock)
-//     --------------------------------------------- */
-
-//     const lastInvoice = await InvoiceModel
-//       .findOne({ iqamaNo, monthYear })
-//       .sort({ version: -1 });
-
-//     if (lastInvoice && !editable) {
-//       // 🔒 Locked month → return last generated invoice
-//       return lastInvoice;
-//     }
-
-//     /* --------------------------------------------
-//        2. Employee configuration
-//     --------------------------------------------- */
-
-//     const employeeConfig = await EmployeeModel.findOne({
-//       iqamaNo,
-//       fromDate: { $lte: now },
-//       toDate: { $gte: now }
-//     });
-
-//     if (!employeeConfig) {
-//       throw new Error(
-//         `Employee configuration not found for ${iqamaNo}`
-//       );
-//     }
-
-//     /* --------------------------------------------
-//        3. Versioning
-//     --------------------------------------------- */
-
-//     const version = lastInvoice ? lastInvoice.version + 1 : 1;
-
-//     /* --------------------------------------------
-//        4. Salary snapshot (PRORATED)
-//     --------------------------------------------- */
-
-//     const baseSalary = {
-//       basic: Number((employeeConfig.basic * prorationRatio).toFixed(2)),
-//       housing: Number((employeeConfig.housing * prorationRatio).toFixed(2)),
-//       transport: Number((employeeConfig.transport * prorationRatio).toFixed(2))
-//     };
-
-//     const fixedCosts = {
-//       medicalInsurance: employeeConfig.medicalInsurance,
-//       iqamaRenewalCost: employeeConfig.iqamaRenewalCost,
-//       gosi: employeeConfig.gosi,
-//       fix: employeeConfig.fix,
-//       saudization: employeeConfig.saudization,
-//       serviceCharge: employeeConfig.serviceCharge,
-//       exitFee: employeeConfig.exitFee,
-//       exitReentryFee: employeeConfig.exitReentryFee
-//     };
-
-//     const totals = calculateTotals(
-//       baseSalary,
-//       fixedCosts,
-//       extraComponents
-//     );
-
-//     /* --------------------------------------------
-//        5. Save invoice
-//     --------------------------------------------- */
-
-//     const invoiceNo = generateInvoiceNo(
-//       iqamaNo,
-//       monthYear,
-//       version
-//     );
-
-//     const invoice = new InvoiceModel({
-//       invoiceNo,
-
-//       iqamaNo,
-//       employeeName: employeeConfig.name,
-//       designation: employeeConfig.designation,
-
-//       monthYear,
-
-//       version,
-//       isFinal: !editable,
-
-//       attendanceSnapshot: {
-//         totalWorkingDays: attendance.totalWorkingDays,
-//         daysPresent: attendance.daysPresent,
-//         prorationRatio
-//       },
-
-//       baseSalary,
-//       fixedCosts,
-//       extraComponents,
-
-//       grossEarnings: totals.grossEarnings,
-//       totalDeductions: totals.totalDeductions,
-//       netPayable: totals.netPayable,
-
-//       generatedAt: now,
-//     });
-
-//     await invoice.save();
-//     return invoice;
-//   }
+  /**
+   * Finalize all past invoices that are still marked as non-final
+   * This runs efficiently using a single MongoDB update query
+   */
+  private static async finalizePastInvoices(): Promise<void> {
+    try {
+      const now = moment();
+      const currentMonthYear = now.format("MMMM-YYYY");
+      
+      // Get all unique month-years that are before current month
+      const pastMonthYears = await InvoiceModel.distinct("monthYear", {
+        isFinal: false
+      });
+      
+      const pastMonths = pastMonthYears.filter(monthYear => {
+        const invoiceMonth = moment(monthYear, "MMMM-YYYY");
+        return invoiceMonth.isBefore(now, "month");
+      });
+      
+      if (pastMonths.length === 0) {
+        return; // No past invoices to finalize
+      }
+      
+      // Bulk update all past invoices to final in a single query
+      const result = await InvoiceModel.updateMany(
+        {
+          monthYear: { $in: pastMonths },
+          isFinal: false
+        },
+        {
+          $set: {
+            isFinal: true,
+            finalizedAt: now.toDate()
+          }
+        }
+      );
+      
+      if (result.modifiedCount > 0) {
+        console.log(`✅ Finalized ${result.modifiedCount} past invoices for months: ${pastMonths.join(", ")}`);
+      }
+    } catch (error) {
+      console.error("❌ Error finalizing past invoices:", error);
+      // Don't throw error to avoid breaking invoice generation
+    }
+  }
 
 
 static async generateInvoice(params: {
@@ -251,9 +148,12 @@ static async generateInvoice(params: {
   const { iqamaNo, monthYear } = params;
   const extraComponents = params.extraComponents ?? [];
 
+  // 🔄 Auto-finalize past invoices (efficient batch operation)
+  await InvoiceService.finalizePastInvoices();
+
   const now = moment();
   const invoiceMonth = moment(monthYear, "MMMM-YYYY");
-  const editable = invoiceMonth.isSameOrAfter(now, "month");
+  const editable = invoiceMonth.isSameOrAfter(now, "month"); //present and future months we can still re-generate invoice and can replace it. but past month we cannot do it. 
 
   /* --------------------------------------------
      0. Attendance (MANDATORY)
@@ -293,7 +193,7 @@ static async generateInvoice(params: {
      2. Employee configuration (MATCH MONTH)
   --------------------------------------------- */
 
-  const monthStart = invoiceMonth.startOf("month").toDate();
+  const monthStart = invoiceMonth.startOf("month").add(1,'day').toDate();
   const monthEnd = invoiceMonth.endOf("month").toDate();
 
   const employeeConfig = await EmployeeModel.findOne({
@@ -418,6 +318,9 @@ static async generateInvoice(params: {
     const { iqamaNos, monthYear } = params;
     const extraComponentsMap = params.extraComponentsMap ?? {};
 
+    // 🔄 Auto-finalize past invoices (efficient batch operation)
+    await InvoiceService.finalizePastInvoices();
+
     const results: {
       iqamaNo: string;
       success: boolean;
@@ -459,6 +362,191 @@ static async generateInvoice(params: {
   /* ==========================================================
      Read APIs
   ========================================================== */
+
+  /**
+   * Manually trigger finalization of past invoices
+   * Can be called from admin endpoints or maintenance operations
+   */
+  static async manuallyFinalizePastInvoices(): Promise<{
+    success: boolean;
+    message: string;
+    finalizedCount: number;
+    monthsFinalized: string[];
+  }> {
+    try {
+      const now = moment();
+      
+      // Get all unique month-years that are before current month and not final
+      const pastMonthYears = await InvoiceModel.distinct("monthYear", {
+        isFinal: false
+      });
+      
+      const pastMonths = pastMonthYears.filter(monthYear => {
+        const invoiceMonth = moment(monthYear, "MMMM-YYYY");
+        return invoiceMonth.isBefore(now, "month");
+      });
+      
+      if (pastMonths.length === 0) {
+        return {
+          success: true,
+          message: "No past invoices found to finalize",
+          finalizedCount: 0,
+          monthsFinalized: []
+        };
+      }
+      
+      // Bulk update all past invoices to final
+      const result = await InvoiceModel.updateMany(
+        {
+          monthYear: { $in: pastMonths },
+          isFinal: false
+        },
+        {
+          $set: {
+            isFinal: true,
+            finalizedAt: now.toDate()
+          }
+        }
+      );
+      
+      return {
+        success: true,
+        message: `Successfully finalized ${result.modifiedCount} past invoices`,
+        finalizedCount: result.modifiedCount,
+        monthsFinalized: pastMonths
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: `Error finalizing past invoices: ${error.message}`,
+        finalizedCount: 0,
+        monthsFinalized: []
+      };
+    }
+  }
+
+  /**
+   * Get statistics about invoice finalization status
+   */
+  // static async getFinalizationStats(): Promise<{
+  //   totalInvoices: number;
+  //   finalizedInvoices: number;
+  //   pendingFinalization: number;
+  //   pastMonthsPending: string[];
+  //   currentMonthInvoices: number;
+  //   futureMonthInvoices: number;
+  // }> {
+  //   const now = moment();
+  //   const currentMonthYear = now.format("MMMM-YYYY");
+    
+  //   const [
+  //     totalInvoices,
+  //     finalizedInvoices,
+  //     pendingFinalization,
+  //     allMonthYears
+  //   ] = await Promise.all([
+  //     InvoiceModel.countDocuments(),
+  //     InvoiceModel.countDocuments({ isFinal: true }),
+  //     InvoiceModel.countDocuments({ isFinal: false,  monthYear: currentMonthYear }),
+  //     InvoiceModel.distinct("monthYear") 
+  //   ]);
+    
+  //   // Categorize months
+  //   const pastMonthsPending: string[] = [];
+  //   let currentMonthInvoices = 0;
+  //   let futureMonthInvoices = 0;
+    
+  //   for (const monthYear of allMonthYears) {
+  //     const invoiceMonth = moment(monthYear, "MMMM-YYYY");
+      
+  //     if (invoiceMonth.isBefore(now, "month")) {
+  //       // Check if this past month has pending invoices
+  //       const pendingCount = await InvoiceModel.countDocuments({
+  //         monthYear,
+  //         isFinal: false
+  //       });
+  //       if (pendingCount > 0) {
+  //         pastMonthsPending.push(monthYear);
+  //       }
+  //     } else if (invoiceMonth.isSame(now, "month")) {
+  //       currentMonthInvoices = await InvoiceModel.countDocuments({ monthYear });
+  //     } else {
+  //       futureMonthInvoices += await InvoiceModel.countDocuments({ monthYear });
+  //     }
+  //   }
+    
+  //   return {
+  //     totalInvoices,
+  //     finalizedInvoices,
+  //     pendingFinalization,
+  //     pastMonthsPending,
+  //     currentMonthInvoices,
+  //     futureMonthInvoices
+  //   };
+  // }
+
+
+  static async getFinalizationStats(): Promise<{
+  totalInvoices: number;
+  finalizedInvoices: number;
+  pendingFinalization: number;
+  pastMonthsPending: string[];
+  currentMonthInvoices: number;
+  futureMonthInvoices: number;
+}> {
+  const now = moment().startOf("month");
+
+  const [
+    totalInvoices,
+    finalizedInvoices,
+    allMonthYears,
+  ] = await Promise.all([
+    InvoiceModel.countDocuments(),
+    InvoiceModel.countDocuments({ isFinal: true }),
+    InvoiceModel.distinct("monthYear"),
+  ]);
+
+  let pendingFinalization = 0;
+  const pastMonthsPending: string[] = [];
+  let currentMonthInvoices = 0;
+  let futureMonthInvoices = 0;
+
+  for (const monthYear of allMonthYears) {
+    const invoiceMonth = moment(monthYear, "MMMM-YYYY");
+
+    if (invoiceMonth.isBefore(now, "month")) {
+      // ✅ PAST MONTH
+      const pendingCount = await InvoiceModel.countDocuments({
+        monthYear,
+        isFinal: false,
+      });
+
+      if (pendingCount > 0) {
+        pastMonthsPending.push(monthYear);
+        pendingFinalization += pendingCount; // ✅ FIXED
+      }
+    } 
+    else if (invoiceMonth.isSame(now, "month")) {
+      // CURRENT MONTH
+      currentMonthInvoices += await InvoiceModel.countDocuments({ monthYear });
+    } 
+    else {
+      // FUTURE MONTH
+      futureMonthInvoices += await InvoiceModel.countDocuments({ monthYear });
+    }
+  }
+
+  return {
+    totalInvoices,
+    finalizedInvoices,
+    pendingFinalization,     // ✅ NOW CORRECT
+    pastMonthsPending,
+    currentMonthInvoices,
+    futureMonthInvoices,
+  };
+}
+
+
 
   static async getLatestInvoice(
     iqamaNo: string,

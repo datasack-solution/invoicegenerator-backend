@@ -409,4 +409,48 @@ export class InvoiceController {
       });
     }
   }
+
+  /**
+   * POST /api/invoices/finalize-past
+   * Manually trigger finalization of all past invoices
+   */
+  static async finalizePastInvoices(req: Request, res: Response) {
+    try {
+      const result = await InvoiceService.manuallyFinalizePastInvoices();
+
+      return res.status(200).json({
+        success: result.success,
+        message: result.message,
+        data: {
+          finalizedCount: result.finalizedCount,
+          monthsFinalized: result.monthsFinalized
+        }
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        success: false,
+        message: error.message || "Failed to finalize past invoices"
+      });
+    }
+  }
+
+  /**
+   * GET /api/invoices/finalization-stats
+   * Get statistics about invoice finalization status
+   */
+  static async getFinalizationStats(req: Request, res: Response) {
+    try {
+      const stats = await InvoiceService.getFinalizationStats();
+
+      return res.status(200).json({
+        success: true,
+        data: stats
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        success: false,
+        message: error.message || "Failed to fetch finalization stats"
+      });
+    }
+  }
 }
