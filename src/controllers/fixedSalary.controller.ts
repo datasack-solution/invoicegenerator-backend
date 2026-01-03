@@ -1,11 +1,21 @@
 import { Request, Response } from "express";
-import { createFixedSalary, updateFixedSalary, deleteFixedSalary } from "../services/fixedSalary.service";
+import { createFixedSalary, updateFixedSalary, deleteFixedSalary, getFixedSalary } from "../services/fixedSalary.service";
 
 export const createFixedSalaryController = async (req: Request, res: Response) => {
   try {
     const payload = req.body;
     const created = await createFixedSalary(payload);
     return res.status(201).json({ message: "Created", data: created });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const getFixedSalaryController = async (req: Request, res: Response) => {
+  try {
+    const fixedSalary = await getFixedSalary();
+    return res.status(201).json({ message: "Retrieved", data: fixedSalary });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "Internal server error" });

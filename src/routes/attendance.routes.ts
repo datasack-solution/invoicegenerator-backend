@@ -16,34 +16,35 @@ import {
     getCurrentMonthAttendanceForAllController,
     getAttendanceForAllEmployeesByMonthController
 } from "../controllers/attendance.controller";
+import { AttendanceModel } from "../models/attendance.model";
 
 const router = Router();
 
 // ==================== SINGLE EMPLOYEE ROUTES ====================
 
 // 1. Create attendance for specific month
-router.post("/create", createAttendanceController);
+router.post("/employee/create", createAttendanceController);
 
 // 2. Create attendance for pending months
-router.post("/create-pending", createPendingAttendanceController);
+router.post("/employee/create-pending", createPendingAttendanceController);
 
 // 3. Check if attendance exists
-router.get("/exists/:iqamaNo/:monthYear", checkAttendanceExistsController);
+router.get("/employee/exists/:iqamaNo/:monthYear", checkAttendanceExistsController);
 
 // 4. Get attendance by month
-router.get("/:iqamaNo/:monthYear", getAttendanceByMonthController);
+router.get("/employee/:iqamaNo/:monthYear", getAttendanceByMonthController);
 
 // 5. Get all attendance for employee
 router.get("/employee/:iqamaNo", getAllAttendanceForEmployeeController);
 
 // 6. Update attendance
-router.put("/:iqamaNo/:monthYear", updateAttendanceController);
+router.put("/employee/:iqamaNo/:monthYear", updateAttendanceController);
 
 // 7. Delete attendance
-router.delete("/:iqamaNo/:monthYear", deleteAttendanceController);
+router.delete("/employee/:iqamaNo/:monthYear", deleteAttendanceController);
 
 // 8. Create current month attendance
-router.post("/create-current-month", createCurrentMonthAttendanceController);
+router.post("/employee/create-current-month", createCurrentMonthAttendanceController);
 
 // ==================== ALL EMPLOYEES ROUTES ====================
 
@@ -58,5 +59,15 @@ router.get("/all-employees/current-month", getCurrentMonthAttendanceForAllContro
 
 // Get attendance for all employees by month
 router.get("/all-employees/:monthYear", getAttendanceForAllEmployeesByMonthController);
+
+
+router.get("/all-attendances", async (req,res,next)=>{
+    try{
+            const got =  await AttendanceModel.find({ iqamaNo:"2345678901" });
+    res.json(got)
+    }catch(e){
+        res.json("error")
+    }
+})
 
 export default router;

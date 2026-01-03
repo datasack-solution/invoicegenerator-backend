@@ -69,6 +69,7 @@ export const checkAttendanceExistsController = async (req: Request, res: Respons
 export const getAttendanceByMonthController = async (req: Request, res: Response) => {
     try {
         const { iqamaNo, monthYear } = req.params;
+        console.log("get attendance by month")
 
         const attendance = await AttendanceService.getAttendanceByMonth(iqamaNo, monthYear);
         
@@ -94,13 +95,13 @@ export const getAllAttendanceForEmployeeController = async (req: Request, res: R
         const { iqamaNo } = req.params;
 
         const attendances = await AttendanceService.getAllAttendanceForEmployee(iqamaNo);
-        
         return res.status(200).json({
             message: "All attendances retrieved successfully",
             data: attendances,
             count: attendances.length
         });
     } catch (error:any) {
+        console.log("error:",error)
         return res.status(400).json({
             message: error.message
         });

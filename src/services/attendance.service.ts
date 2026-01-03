@@ -3,9 +3,9 @@ import { EmployeeModel, EmployeeConfigDocument } from "../models/employee.model"
 import moment from "moment";
 
 export class AttendanceService {
-    
+
     // ==================== SINGLE EMPLOYEE FUNCTIONS ====================
-    
+
     /**
      * 1. Create attendance for an employee for a specific month
      */
@@ -48,7 +48,7 @@ export class AttendanceService {
 
             const attendance = new AttendanceModel(attendanceData);
             return await attendance.save();
-        } catch (error:any) {
+        } catch (error: any) {
             throw new Error(`Failed to create attendance: ${error.message}`);
         }
     }
@@ -71,7 +71,7 @@ export class AttendanceService {
                 try {
                     // For pending months, total working days = days present
                     const totalWorkingDays = this.getTotalWorkingDaysInMonth(monthYear);
-                    
+
                     const attendanceData: Omit<Attendance, '_id'> = {
                         iqamaNo: employee.iqamaNo,
                         name: employee.name,
@@ -84,13 +84,13 @@ export class AttendanceService {
                     const attendance = new AttendanceModel(attendanceData);
                     const savedAttendance = await attendance.save();
                     createdAttendances.push(savedAttendance);
-                } catch (error:any) {
+                } catch (error: any) {
                     console.warn(`Failed to create attendance for ${monthYear}: ${error.message}`);
                 }
             }
 
             return createdAttendances;
-        } catch (error:any) {
+        } catch (error: any) {
             throw new Error(`Failed to create pending attendances: ${error.message}`);
         }
     }
@@ -102,7 +102,7 @@ export class AttendanceService {
         try {
             const attendance = await AttendanceModel.findOne({ iqamaNo, monthYear });
             return !!attendance;
-        } catch (error:any) {
+        } catch (error: any) {
             throw new Error(`Failed to check attendance existence: ${error.message}`);
         }
     }
@@ -113,7 +113,7 @@ export class AttendanceService {
     static async getAttendanceByMonth(iqamaNo: string, monthYear: string): Promise<AttendanceDocument | null> {
         try {
             return await AttendanceModel.findOne({ iqamaNo, monthYear });
-        } catch (error:any) {
+        } catch (error: any) {
             throw new Error(`Failed to get attendance: ${error.message}`);
         }
     }
@@ -123,8 +123,26 @@ export class AttendanceService {
      */
     static async getAllAttendanceForEmployee(iqamaNo: string): Promise<AttendanceDocument[]> {
         try {
-            return await AttendanceModel.find({ iqamaNo }).sort({ monthYear: 1 });
-        } catch (error:any) {
+            return await AttendanceModel.aggregate([
+                { $match: { iqamaNo } },
+                {
+                    $addFields: {
+                        monthDate: {
+                            $dateFromString: {
+                                dateString: {
+                                    $concat: [
+                                        "01-",
+                                        "$monthYear"
+                                    ]
+                                },
+                                format: "%d-%B-%Y"
+                            }
+                        }
+                    }
+                },
+                { $sort: { monthDate: -1 } }
+            ]);
+        } catch (error: any) {
             throw new Error(`Failed to get all attendance: ${error.message}`);
         }
     }
@@ -133,18 +151,18 @@ export class AttendanceService {
      * 6. Update attendance for an employee for a month
      */
     static async updateAttendance(
-        iqamaNo: string, 
-        monthYear: string, 
+        iqamaNo: string,
+        monthYear: string,
         daysPresent?: number,
         remarks?: string
     ): Promise<AttendanceDocument | null> {
         try {
             const updateData: any = {};
-            
+
             if (daysPresent !== undefined) {
                 updateData.daysPresent = daysPresent;
             }
-            
+
             if (remarks !== undefined) {
                 updateData.remarks = remarks;
             }
@@ -154,7 +172,7 @@ export class AttendanceService {
                 updateData,
                 { new: true }
             );
-        } catch (error:any) {
+        } catch (error: any) {
             throw new Error(`Failed to update attendance: ${error.message}`);
         }
     }
@@ -166,7 +184,7 @@ export class AttendanceService {
         try {
             const result = await AttendanceModel.deleteOne({ iqamaNo, monthYear });
             return result.deletedCount > 0;
-        } catch (error:any) {
+        } catch (error: any) {
             throw new Error(`Failed to delete attendance: ${error.message}`);
         }
     }
@@ -186,7 +204,7 @@ export class AttendanceService {
             }
 
             const currentMonthYear = this.getCurrentMonthYear();
-            
+
             // Check if employee resigned in current month or before
             if (employee.resignationDate) {
                 const resignationMonthYear = this.formatDateToMonthYear(employee.resignationDate);
@@ -223,7 +241,7 @@ export class AttendanceService {
             createdAttendances.push(currentAttendance);
 
             return createdAttendances;
-        } catch (error:any) {
+        } catch (error: any) {
             throw new Error(`Failed to create current month attendance: ${error.message}`);
         }
     }
@@ -265,13 +283,13 @@ export class AttendanceService {
                         remarks || 'Auto-generated for all employees'
                     );
                     createdAttendances.push(attendance);
-                } catch (error:any) {
+                } catch (error: any) {
                     console.error(`Failed to create attendance for ${employee.iqamaNo}: ${error.message}`);
                 }
             }
 
             return createdAttendances;
-        } catch (error:any) {
+        } catch (error: any) {
             throw new Error(`Failed to generate attendance for all employees: ${error.message}`);
         }
     }
@@ -288,14 +306,14 @@ export class AttendanceService {
                 try {
                     const attendances = await this.createAttendanceForPendingMonths(employee.iqamaNo);
                     results[employee.iqamaNo] = attendances;
-                } catch (error:any) {
+                } catch (error: any) {
                     console.error(`Failed to create pending attendances for ${employee.iqamaNo}: ${error.message}`);
                     results[employee.iqamaNo] = [];
                 }
             }
 
             return results;
-        } catch (error:any) {
+        } catch (error: any) {
             throw new Error(`Failed to create pending attendances for all employees: ${error.message}`);
         }
     }
@@ -307,7 +325,7 @@ export class AttendanceService {
         try {
             const currentMonthYear = this.getCurrentMonthYear();
             return await AttendanceModel.find({ monthYear: currentMonthYear }).sort({ name: 1 });
-        } catch (error:any) {
+        } catch (error: any) {
             throw new Error(`Failed to get current month attendance for all employees: ${error.message}`);
         }
     }
@@ -318,7 +336,7 @@ export class AttendanceService {
     static async getAttendanceForAllEmployeesByMonth(monthYear: string): Promise<AttendanceDocument[]> {
         try {
             return await AttendanceModel.find({ monthYear }).sort({ name: 1 });
-        } catch (error:any) {
+        } catch (error: any) {
             throw new Error(`Failed to get attendance for all employees: ${error.message}`);
         }
     }
@@ -334,29 +352,30 @@ export class AttendanceService {
             'January', 'February', 'March', 'April', 'May', 'June',
             'July', 'August', 'September', 'October', 'November', 'December'
         ];
-        
+
         const monthIndex = months.indexOf(monthName);
         const year = parseInt(yearStr);
-        
+
         // Create moment object for the first day of the month
         const startOfMonth = moment([year, monthIndex, 1]);
-        
+
         // Get the number of days in the month
         const daysInMonth = startOfMonth.daysInMonth();
-        
-        // Count working days (excluding Fridays and Saturdays - weekend in Saudi Arabia)
-        let workingDays = 0;
-        for (let day = 1; day <= daysInMonth; day++) {
-            const currentDay = moment([year, monthIndex, day]);
-            const dayOfWeek = currentDay.day(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-            
-            // In Saudi Arabia, weekend is Friday (5) and Saturday (6)
-            if (dayOfWeek !== 5 && dayOfWeek !== 6) {
-                workingDays++;
-            }
-        }
-        
-        return workingDays;
+
+        // // Count working days (excluding Fridays and Saturdays - weekend in Saudi Arabia)
+        // let workingDays = 0;
+        // for (let day = 1; day <= daysInMonth; day++) {
+        //     const currentDay = moment([year, monthIndex, day]);
+        //     const dayOfWeek = currentDay.day(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+
+        //     // In Saudi Arabia, weekend is Friday (5) and Saturday (6)
+        //     if (dayOfWeek !== 5 && dayOfWeek !== 6) {
+        //         workingDays++;
+        //     }
+        // }
+
+        // return workingDays;
+        return daysInMonth
     }
 
     /**
@@ -416,7 +435,7 @@ export class AttendanceService {
 
         const joiningMonthYear = this.formatDateToMonthYear(employee.joiningDate);
         const currentMonthYear = this.getCurrentMonthYear();
-        
+
         // Get end month (resignation date or current month)
         let endMonthYear = this.getPreviousMonthYear(currentMonthYear); // Don't include current month in pending
         if (employee.resignationDate) {
@@ -459,10 +478,10 @@ export class AttendanceService {
             'January', 'February', 'March', 'April', 'May', 'June',
             'July', 'August', 'September', 'October', 'November', 'December'
         ];
-        
+
         const monthIndex = months.indexOf(monthName);
         const year = parseInt(yearStr);
-        
+
         const prevMonth = moment([year, monthIndex, 1]).subtract(1, 'month');
         return prevMonth.format('MMMM-YYYY');
     }
@@ -499,14 +518,14 @@ export class AttendanceService {
         const months: string[] = [];
         const startDate = this.parseMonthYear(startMonthYear);
         const endDate = this.parseMonthYear(endMonthYear);
-        
+
         const current = startDate.clone();
-        
+
         while (current.isSameOrBefore(endDate)) {
             months.push(current.format('MMMM-YYYY'));
             current.add(1, 'month');
         }
-        
+
         return months;
     }
 }

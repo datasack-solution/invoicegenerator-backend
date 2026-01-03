@@ -14,6 +14,11 @@ export const createFixedSalary = async (payload: FixedSalaryDetails) => {
   }
 };
 
+
+export const getFixedSalary = async () => {
+  return await FixedSalaryModel.findOne({}).lean()
+};
+
 export const updateFixedSalary = async (id: string, changes: Partial<FixedSalaryDetails>) => {
   const session = await mongoose.startSession();
   try {

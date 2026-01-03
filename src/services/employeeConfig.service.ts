@@ -15,23 +15,29 @@ export const createEmployeeConfig = async (payload: CreatePayload) => {
   try {
     let created: any = null;
     await session.withTransaction(async () => {
-      const rawFrom = payload.fromDate ? new Date(payload.fromDate) : new Date();
-      const fromDate = startOfDayUTC(rawFrom);
-      const toDate = payload.toDate ? endOfDayUTC(new Date(payload.toDate)) : OPEN_ENDED_DATE;
-      const joiningDate = payload.joiningDate ? new Date(payload.joiningDate) : new Date();
-      const resignationDate = payload.resignationDate ? new Date(payload.resignationDate) : undefined;
+      // Remove _id from payload to avoid conflicts
+      const { _id, ...cleanPayload } = payload;
       
-      payload.joiningDate = joiningDate;  
-      payload.resignationDate = resignationDate;  
+      const rawFrom = cleanPayload.fromDate ? new Date(cleanPayload.fromDate) : new Date();
+      const fromDate = startOfDayUTC(rawFrom);
+      const toDate = cleanPayload.toDate ? endOfDayUTC(new Date(cleanPayload.toDate)) : OPEN_ENDED_DATE;
+      const joiningDate = cleanPayload.joiningDate ? new Date(cleanPayload.joiningDate) : new Date();
+      const resignationDate = cleanPayload.resignationDate ? new Date(cleanPayload.resignationDate) : undefined;
+      
+      cleanPayload.joiningDate = joiningDate;  
+      cleanPayload.resignationDate = resignationDate;  
 
       // Always read the single FixedSalary document (first one) and merge its fields
       const fixed = await FixedSalaryModel.findOne().lean();
+      let finalPayload = cleanPayload;
       if (fixed) {
-        payload = { ...payload, ...fixed };
+        // Remove _id from fixed salary data
+        const { _id: fixedId, ...fixedData } = fixed;
+        finalPayload = { ...finalPayload, ...fixedData };
       }
 
       // Find previous open-ended config for same iqamaNo and close it FIRST to avoid unique index conflict
-      const prev = await EmployeeModel.findOne({ iqamaNo: payload.iqamaNo, toDate: OPEN_ENDED_DATE }).session(session);
+      const prev = await EmployeeModel.findOne({ iqamaNo: finalPayload.iqamaNo, toDate: OPEN_ENDED_DATE }).session(session);
       if (prev) {
         const prevTo = new Date(fromDate);
         // subtract one day in UTC
@@ -43,21 +49,21 @@ export const createEmployeeConfig = async (payload: CreatePayload) => {
       // create new config document; let Mongoose assign _id (avoid duplicate _id errors)
       created = await EmployeeModel.create([
         {
-          iqamaNo: payload.iqamaNo,
-          name: payload.name,
-          designation: payload.designation,
-          status: payload.status,
-          basic: payload.basic,
-          housing: payload.housing,
-          transport: payload.transport,
-          medicalInsurance: payload.medicalInsurance,
-          iqamaRenewalCost: payload.iqamaRenewalCost,
-          gosi: payload.gosi,
-          fix: payload.fix,
-          saudization: payload.saudization,
-          serviceCharge: payload.serviceCharge,
-          exitFee: payload.exitFee,
-          exitReentryFee: payload.exitReentryFee,
+          iqamaNo: finalPayload.iqamaNo,
+          name: finalPayload.name,
+          designation: finalPayload.designation,
+          status: finalPayload.status,
+          basic: finalPayload.basic,
+          housing: finalPayload.housing,
+          transport: finalPayload.transport,
+          medicalInsurance: finalPayload.medicalInsurance,
+          iqamaRenewalCost: finalPayload.iqamaRenewalCost,
+          gosi: finalPayload.gosi,
+          fix: finalPayload.fix,
+          saudization: finalPayload.saudization,
+          serviceCharge: finalPayload.serviceCharge,
+          exitFee: finalPayload.exitFee,
+          exitReentryFee: finalPayload.exitReentryFee,
           fromDate,
           toDate,
           joiningDate,
@@ -77,18 +83,24 @@ export const updateEmployeeConfig = async (id: string, changes: any) => {
   try {
     let updated: any = null;
     await session.withTransaction(async () => {
+      // Remove _id from changes to avoid immutable field error
+      const { _id, ...updateChanges } = changes;
+      let finalChanges = updateChanges;
+      
       // For corrections we also read the single FixedSalary doc and merge (if present)
       const fixedForUpdate = await FixedSalaryModel.findOne().lean();
       if (fixedForUpdate) {
-        changes = { ...changes, ...fixedForUpdate };
+        // Also remove _id from fixed salary data
+        const { _id: fixedId, ...fixedData } = fixedForUpdate;
+        finalChanges = { ...finalChanges, ...fixedData };
       }
 
       // Load existing document to compute resulting iqamaNo and toDate
       const existing = await EmployeeModel.findById(id).session(session);
       if (!existing) throw new Error("Config not found");
 
-      const newIqamaNo = changes.iqamaNo ?? existing.iqamaNo;
-      const newToDate = changes.toDate ? endOfDayUTC(new Date(changes.toDate)) : endOfDayUTC(new Date(existing.toDate));
+      const newIqamaNo = finalChanges.iqamaNo ?? existing.iqamaNo;
+      const newToDate = finalChanges.toDate ? endOfDayUTC(new Date(finalChanges.toDate)) : endOfDayUTC(new Date(existing.toDate));
 
       // Check uniqueness: no other doc should have same iqamaNo + toDate
       const conflict = await EmployeeModel.findOne({ iqamaNo: newIqamaNo, toDate: newToDate, _id: { $ne: id } }).session(session);
@@ -96,7 +108,7 @@ export const updateEmployeeConfig = async (id: string, changes: any) => {
         throw new Error("Duplicate config: another entry exists with same iqamaNo and toDate");
       }
 
-      updated = await EmployeeModel.findByIdAndUpdate(id, changes, { new: true, session });
+      updated = await EmployeeModel.findByIdAndUpdate(id, finalChanges, { new: true, session });
     });
     return updated;
   } finally {
