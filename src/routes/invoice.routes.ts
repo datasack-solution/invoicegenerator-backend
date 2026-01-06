@@ -1,6 +1,10 @@
 import { Router } from "express";
 import { InvoiceController } from "../controllers/invoice.controller";
-
+import moment from "moment";
+import { EmployeeModel } from "../models/employee.model";
+import { InvoiceService } from "../services/invoice.service";
+import { OPEN_ENDED_DATE } from "../services/employeeConfig.service";
+import { AttendanceService } from "../services/attendance.service";
 const router = Router();
 
 /* ============================================================
@@ -38,11 +42,7 @@ router.get(
   InvoiceController.getLatestInvoice
 );
 
-import moment from "moment";
-import { EmployeeModel } from "../models/employee.model";
-import { InvoiceService } from "../services/invoice.service";
-import { OPEN_ENDED_DATE } from "../services/employeeConfig.service";
-import { AttendanceService } from "../services/attendance.service";
+
 /**
  * Get invoice generated status for all active employees (current month)
  */
@@ -74,15 +74,16 @@ router.get(
           return {
             iqamaNo: emp.iqamaNo,
             generated: !!invoice,
-            attendanceExist: !!attendanceExists
+            attendanceExist: !!attendanceExists,
+            lastGeneratedAt: invoice ? invoice?.updatedAt : null
           };
         })
       );
 
       // 3. Convert to map for frontend efficiency
-      const statusMap: Record<string, {invoiceExist: boolean, attendanceExist:boolean}> = {};
+      const statusMap: Record<string, {invoiceExist: boolean, attendanceExist:boolean, lastGeneratedAt: Date | null | undefined}> = {};
       results.forEach(r => {
-        statusMap[String(r.iqamaNo)] = { invoiceExist: r.generated, attendanceExist: r.attendanceExist};
+        statusMap[String(r.iqamaNo)] = { invoiceExist: r.generated, attendanceExist: r.attendanceExist, lastGeneratedAt: r.lastGeneratedAt};
       });
 
       return res.status(200).json({

@@ -10,66 +10,136 @@ const endOfDayUTC = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCM
 
 export const OPEN_ENDED_DATE = endOfDayUTC(new Date("9999-12-31T00:00:00.000Z"));
 
-export const createEmployeeConfig = async (payload: CreatePayload) => {
+// export const createEmployeeConfig = async (payload: CreatePayload) => {
+//   const session = await mongoose.startSession();
+//   try {
+//     let created: any = null;
+//     await session.withTransaction(async () => {
+//       // Remove _id from payload to avoid conflicts
+//       const { _id, ...cleanPayload } = payload;
+      
+//       const rawFrom = cleanPayload.fromDate ? new Date(cleanPayload.fromDate) : new Date();
+//       const fromDate = startOfDayUTC(rawFrom);
+//       const toDate = cleanPayload.toDate ? endOfDayUTC(new Date(cleanPayload.toDate)) : OPEN_ENDED_DATE;
+//       const joiningDate = cleanPayload.joiningDate ? new Date(cleanPayload.joiningDate) : new Date();
+//       const resignationDate = cleanPayload.resignationDate ? new Date(cleanPayload.resignationDate) : undefined;
+      
+//       cleanPayload.joiningDate = joiningDate;  
+//       cleanPayload.resignationDate = resignationDate;  
+
+//       // Always read the single FixedSalary document (first one) and merge its fields
+//       const fixed = await FixedSalaryModel.findOne().lean();
+//       let finalPayload = cleanPayload;
+//       if (fixed) {
+//         // Remove _id from fixed salary data
+//         const { _id: fixedId, ...fixedData } = fixed;
+//         finalPayload = { ...finalPayload, ...fixedData };
+//       }
+
+//       // Find previous open-ended config for same iqamaNo and close it FIRST to avoid unique index conflict
+//       const prev = await EmployeeModel.findOne({ iqamaNo: finalPayload.iqamaNo, toDate: OPEN_ENDED_DATE }).session(session);
+//       if (prev) {
+//         const prevTo = new Date(fromDate);
+//         // subtract one day in UTC
+//         prevTo.setUTCDate(prevTo.getUTCDate() - 1);
+//         prev.toDate = endOfDayUTC(prevTo);
+//         await prev.save({ session });
+//       }
+
+//       // create new config document; let Mongoose assign _id (avoid duplicate _id errors)
+//       created = await EmployeeModel.create([
+//         {
+//           iqamaNo: finalPayload.iqamaNo,
+//           name: finalPayload.name,
+//           designation: finalPayload.designation,
+//           status: finalPayload.status,
+//           basic: finalPayload.basic,
+//           housing: finalPayload.housing,
+//           transport: finalPayload.transport,
+//           medicalInsurance: finalPayload.medicalInsurance,
+//           iqamaRenewalCost: finalPayload.iqamaRenewalCost,
+//           gosi: finalPayload.gosi,
+//           fix: finalPayload.fix,
+//           saudization: finalPayload.saudization,
+//           serviceCharge: finalPayload.serviceCharge,
+//           exitFee: finalPayload.exitFee,
+//           exitReentryFee: finalPayload.exitReentryFee,
+//           fromDate,
+//           toDate,
+//           joiningDate,
+//           resignationDate
+//         }
+//       ], { session });
+//     });
+
+//     return created?.[0] ?? null;
+//   } finally {
+//     session.endSession();
+//   }
+// };
+
+
+export const createEmployeeConfig = async (payload: CreatePayload & {
+  useDefaultFixedSalary?: boolean;
+}) => {
   const session = await mongoose.startSession();
   try {
     let created: any = null;
+
     await session.withTransaction(async () => {
-      // Remove _id from payload to avoid conflicts
-      const { _id, ...cleanPayload } = payload;
-      
+      const { _id, useDefaultFixedSalary, ...cleanPayload } = payload;
+
       const rawFrom = cleanPayload.fromDate ? new Date(cleanPayload.fromDate) : new Date();
       const fromDate = startOfDayUTC(rawFrom);
-      const toDate = cleanPayload.toDate ? endOfDayUTC(new Date(cleanPayload.toDate)) : OPEN_ENDED_DATE;
-      const joiningDate = cleanPayload.joiningDate ? new Date(cleanPayload.joiningDate) : new Date();
-      const resignationDate = cleanPayload.resignationDate ? new Date(cleanPayload.resignationDate) : undefined;
-      
-      cleanPayload.joiningDate = joiningDate;  
-      cleanPayload.resignationDate = resignationDate;  
+      const toDate = cleanPayload.toDate
+        ? endOfDayUTC(new Date(cleanPayload.toDate))
+        : OPEN_ENDED_DATE;
 
-      // Always read the single FixedSalary document (first one) and merge its fields
-      const fixed = await FixedSalaryModel.findOne().lean();
+      const joiningDate = cleanPayload.joiningDate
+        ? new Date(cleanPayload.joiningDate)
+        : new Date();
+
+      const resignationDate = cleanPayload.resignationDate
+        ? new Date(cleanPayload.resignationDate)
+        : undefined;
+
+      cleanPayload.joiningDate = joiningDate;
+      cleanPayload.resignationDate = resignationDate;
+
       let finalPayload = cleanPayload;
-      if (fixed) {
-        // Remove _id from fixed salary data
+
+      // ✅ CONDITIONAL FIXED SALARY MERGE
+      if (useDefaultFixedSalary) {
+        const fixed = await FixedSalaryModel.findOne().lean();
+        if (!fixed) {
+          throw new Error("Default fixed salary configuration not found");
+        }
+
         const { _id: fixedId, ...fixedData } = fixed;
         finalPayload = { ...finalPayload, ...fixedData };
       }
 
-      // Find previous open-ended config for same iqamaNo and close it FIRST to avoid unique index conflict
-      const prev = await EmployeeModel.findOne({ iqamaNo: finalPayload.iqamaNo, toDate: OPEN_ENDED_DATE }).session(session);
+      // 🔒 Close previous open-ended config
+      const prev = await EmployeeModel.findOne({
+        iqamaNo: finalPayload.iqamaNo,
+        toDate: OPEN_ENDED_DATE
+      }).session(session);
+
       if (prev) {
         const prevTo = new Date(fromDate);
-        // subtract one day in UTC
         prevTo.setUTCDate(prevTo.getUTCDate() - 1);
         prev.toDate = endOfDayUTC(prevTo);
         await prev.save({ session });
       }
 
-      // create new config document; let Mongoose assign _id (avoid duplicate _id errors)
-      created = await EmployeeModel.create([
-        {
-          iqamaNo: finalPayload.iqamaNo,
-          name: finalPayload.name,
-          designation: finalPayload.designation,
-          status: finalPayload.status,
-          basic: finalPayload.basic,
-          housing: finalPayload.housing,
-          transport: finalPayload.transport,
-          medicalInsurance: finalPayload.medicalInsurance,
-          iqamaRenewalCost: finalPayload.iqamaRenewalCost,
-          gosi: finalPayload.gosi,
-          fix: finalPayload.fix,
-          saudization: finalPayload.saudization,
-          serviceCharge: finalPayload.serviceCharge,
-          exitFee: finalPayload.exitFee,
-          exitReentryFee: finalPayload.exitReentryFee,
+      created = await EmployeeModel.create(
+        [{
+          ...finalPayload,
           fromDate,
-          toDate,
-          joiningDate,
-          resignationDate
-        }
-      ], { session });
+          toDate
+        }],
+        { session }
+      );
     });
 
     return created?.[0] ?? null;
@@ -77,6 +147,7 @@ export const createEmployeeConfig = async (payload: CreatePayload) => {
     session.endSession();
   }
 };
+
 
 export const updateEmployeeConfig = async (id: string, changes: any) => {
   const session = await mongoose.startSession();
@@ -87,13 +158,13 @@ export const updateEmployeeConfig = async (id: string, changes: any) => {
       const { _id, ...updateChanges } = changes;
       let finalChanges = updateChanges;
       
-      // For corrections we also read the single FixedSalary doc and merge (if present)
-      const fixedForUpdate = await FixedSalaryModel.findOne().lean();
-      if (fixedForUpdate) {
-        // Also remove _id from fixed salary data
-        const { _id: fixedId, ...fixedData } = fixedForUpdate;
-        finalChanges = { ...finalChanges, ...fixedData };
-      }
+      // // For corrections we also read the single FixedSalary doc and merge (if present)
+      // const fixedForUpdate = await FixedSalaryModel.findOne().lean();
+      // if (fixedForUpdate) {
+      //   // Also remove _id from fixed salary data
+      //   const { _id: fixedId, ...fixedData } = fixedForUpdate;
+      //   finalChanges = { ...finalChanges, ...fixedData };
+      // }
 
       // Load existing document to compute resulting iqamaNo and toDate
       const existing = await EmployeeModel.findById(id).session(session);
@@ -115,6 +186,62 @@ export const updateEmployeeConfig = async (id: string, changes: any) => {
     session.endSession();
   }
 };
+
+
+// export const updateEmployeeConfig = async (
+//   id: string,
+//   changes: any & { useDefaultFixedSalary?: boolean }
+// ) => {
+//   const session = await mongoose.startSession();
+//   try {
+//     let updated: any = null;
+
+//     await session.withTransaction(async () => {
+//       const { _id, useDefaultFixedSalary, ...updateChanges } = changes;
+
+//       let finalChanges = updateChanges;
+
+//       if (useDefaultFixedSalary) {
+//         const fixed = await FixedSalaryModel.findOne().lean();
+//         if (!fixed) {
+//           throw new Error("Default fixed salary configuration not found");
+//         }
+
+//         const { _id: fixedId, ...fixedData } = fixed;
+//         finalChanges = { ...finalChanges, ...fixedData };
+//       }
+
+//       const existing = await EmployeeModel.findById(id).session(session);
+//       if (!existing) throw new Error("Config not found");
+
+//       const newIqamaNo = finalChanges.iqamaNo ?? existing.iqamaNo;
+//       const newToDate = finalChanges.toDate
+//         ? endOfDayUTC(new Date(finalChanges.toDate))
+//         : endOfDayUTC(new Date(existing.toDate));
+
+//       const conflict = await EmployeeModel.findOne({
+//         iqamaNo: newIqamaNo,
+//         toDate: newToDate,
+//         _id: { $ne: id }
+//       }).session(session);
+
+//       if (conflict) {
+//         throw new Error("Duplicate config: another entry exists with same iqamaNo and toDate");
+//       }
+
+//       updated = await EmployeeModel.findByIdAndUpdate(
+//         id,
+//         finalChanges,
+//         { new: true, session }
+//       );
+//     });
+
+//     return updated;
+//   } finally {
+//     session.endSession();
+//   }
+// };
+
 
 export const recreateEmployeeConfig = async (payload: CreatePayload) => {
   // For recreation we force the new config's fromDate to the 1st day of the next month (UTC)

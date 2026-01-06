@@ -294,6 +294,52 @@ export class AttendanceService {
         }
     }
 
+
+    // Generate attendance for selected employees
+    static async generateAttendanceForSelectedEmployees(
+        iqamaNos: string[],
+        monthYear: string,
+        daysPresent: number,
+        remarks?: string
+    ): Promise<AttendanceDocument[]> {
+        try {
+            // const activeEmployees = await this.getAllActiveEmployees();
+            const createdAttendances: AttendanceDocument[] = [];
+
+            for (const iqamaNo of iqamaNos) {
+                try {
+                    // Check if employee can have attendance for this month
+                    const canCreate = await this.canCreateAttendanceForMonth(iqamaNo, monthYear);
+                    if (!canCreate) {
+                        console.warn(`Skipping ${iqamaNo} for ${monthYear} - resigned before this month or not joined yet`);
+                        continue;
+                    }
+
+                    // Check if attendance already exists
+                    const exists = await this.checkAttendanceExists(iqamaNo, monthYear);
+                    if (exists) {
+                        console.warn(`Attendance already exists for ${iqamaNo} in ${monthYear}`);
+                        continue;
+                    }
+
+                    const attendance = await this.createAttendance(
+                        iqamaNo,
+                        monthYear,
+                        daysPresent,
+                        remarks || 'Auto-generated for all employees'
+                    );
+                    createdAttendances.push(attendance);
+                } catch (error: any) {
+                    console.error(`Failed to create attendance for ${iqamaNo}: ${error.message}`);
+                }
+            }
+
+            return createdAttendances;
+        } catch (error: any) {
+            throw new Error(`Failed to generate attendance for all employees: ${error.message}`);
+        }
+    }
+
     /**
      * Create attendance for pending months for all employees
      */

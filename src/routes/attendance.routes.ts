@@ -14,7 +14,8 @@ import {
     generateAttendanceForAllEmployeesController,
     createPendingAttendanceForAllEmployeesController,
     getCurrentMonthAttendanceForAllController,
-    getAttendanceForAllEmployeesByMonthController
+    getAttendanceForAllEmployeesByMonthController,
+    generateAttendanceForSelectedEmployeesController
 } from "../controllers/attendance.controller";
 import { AttendanceModel } from "../models/attendance.model";
 
@@ -50,6 +51,8 @@ router.post("/employee/create-current-month", createCurrentMonthAttendanceContro
 
 // Generate attendance for all employees for specific month
 router.post("/all-employees/generate", generateAttendanceForAllEmployeesController);
+
+router.post("/bulk-attendance/generate", generateAttendanceForSelectedEmployeesController);
 
 // Create pending attendance for all employees
 router.post("/all-employees/create-pending", createPendingAttendanceForAllEmployeesController);

@@ -240,7 +240,7 @@ export class InvoiceController {
    */
   static async generateInvoice(req: Request, res: Response) {
     try {
-      const { iqamaNo, monthYear, extraComponents } = req.body;
+      const { iqamaNo, monthYear, daysPresent, remarks, invoiceRemarks, extraComponents } = req.body;
 
       if (!iqamaNo) {
         return res
@@ -254,6 +254,12 @@ export class InvoiceController {
           .json({ message: "Invalid monthYear format" });
       }
 
+      if (!daysPresent) {
+        return res
+          .status(400)
+          .json({ message: "No of present days is required" });
+      }
+
       if (extraComponents) {
         validateExtraComponents(extraComponents);
       }
@@ -261,6 +267,9 @@ export class InvoiceController {
       const invoice = await InvoiceService.generateInvoice({
         iqamaNo,
         monthYear,
+        daysPresent,
+        remarks,
+        invoiceRemarks, // Add invoice remarks
         extraComponents
       });
 
@@ -281,7 +290,7 @@ export class InvoiceController {
    */
   static async bulkGenerateInvoices(req: Request, res: Response) {
     try {
-      const { iqamaNos, monthYear, extraComponentsMap } = req.body;
+      const { iqamaNos, monthYear, extraComponentsMap, remarks } = req.body;
 
       if (!Array.isArray(iqamaNos) || iqamaNos.length === 0) {
         return res.status(400).json({
@@ -298,7 +307,8 @@ export class InvoiceController {
       const report = await InvoiceService.bulkGenerateInvoices({
         iqamaNos,
         monthYear,
-        extraComponentsMap
+        extraComponentsMap,
+        remarks
       });
 
       return res.status(201).json({
@@ -309,6 +319,34 @@ export class InvoiceController {
       return res.status(500).json({
         success: false,
         message: error.message || "Bulk invoice generation failed"
+      });
+    }
+  }
+
+
+  /**
+ * DELETE /api/invoices/delete-invoice
+ */
+  static async deleteInvoice(req: Request, res: Response) {
+    try {
+      const { iqamaNo, monthYear } = req.body;
+
+      if (!monthYear || !isValidMonthYear(monthYear)) {
+        return res.status(400).json({
+          message: "Invalid monthYear format"
+        });
+      }
+
+      const report = await InvoiceService.deleteInvoice({
+        iqamaNo,
+        monthYear,
+      });
+
+      return res.status(201).json(report);
+    } catch (error: any) {
+      return res.status(500).json({
+        success: false,
+        message: error.message || "delete invoice failed"
       });
     }
   }

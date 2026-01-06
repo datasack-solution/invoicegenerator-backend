@@ -203,6 +203,31 @@ export const generateAttendanceForAllEmployeesController = async (req: Request, 
     }
 };
 
+// Selected Employees Controllers
+export const generateAttendanceForSelectedEmployeesController = async (req: Request, res: Response) => {
+    try {
+        const {iqamaNos, monthYear, daysPresent, remarks } = req.body;
+
+        if (!monthYear || daysPresent === undefined) {
+            return res.status(400).json({
+                message: "monthYear and daysPresent are required"
+            });
+        }
+
+        const attendances = await AttendanceService.generateAttendanceForSelectedEmployees(iqamaNos,monthYear, daysPresent, remarks);
+        
+        return res.status(201).json({
+            message: "Attendance generated for all employees successfully",
+            data: attendances,
+            count: attendances.length
+        });
+    } catch (error:any) {
+        return res.status(400).json({
+            message: error.message
+        });
+    }
+};
+
 export const createPendingAttendanceForAllEmployeesController = async (req: Request, res: Response) => {
     try {
         const results = await AttendanceService.createAttendanceForAllEmployeesPendingMonths();
