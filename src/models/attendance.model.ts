@@ -3,6 +3,7 @@ import { Schema, model, Model } from "mongoose";
 // Attendance common for both companies
 export interface Attendance {
     _id?: string;
+    companyId: string;
     iqamaNo: string;
     name: string;
     monthYear: string; // "MM-YYYY"
@@ -14,6 +15,7 @@ export interface Attendance {
 export interface AttendanceDocument extends Attendance {}
 
 export const AttendanceSchema = new Schema<AttendanceDocument>({
+  companyId: { type: String, required: true },
   iqamaNo: { type: String, required: true },
   name: { type: String, required: true },
   monthYear: { type: String, required: true }, //January-2025
@@ -22,7 +24,8 @@ export const AttendanceSchema = new Schema<AttendanceDocument>({
   remarks: { type: String }
 });
 
-// AttendanceSchema.index({ iqamaNo: 1, monthYear: 1 }, { unique: true });
+// Unique index for companyId + iqamaNo + monthYear
+AttendanceSchema.index({ companyId: 1, iqamaNo: 1, monthYear: 1 }, { unique: true });
 
 export const AttendanceModel: Model<AttendanceDocument> = model<AttendanceDocument>("Attendance", AttendanceSchema);
 

@@ -13,6 +13,7 @@ export interface InvoiceComponent {
 /* ---------- Invoice ---------- */
 
 export interface Invoice {
+    companyId: string;
     invoiceNo: string;
 
     iqamaNo: string;
@@ -68,6 +69,7 @@ export interface Invoice {
 
 const InvoiceSchema = new Schema<Invoice>(
     {
+        companyId: { type: String, required: true },
         invoiceNo: { type: String, required: true, unique: true },
 
         iqamaNo: { type: String, required: true },
@@ -129,9 +131,9 @@ const InvoiceSchema = new Schema<Invoice>(
 
 /* ---------- Index ---------- */
 
-// Group invoices by employee + month
+// Group invoices by company + employee + month
 InvoiceSchema.index(
-    { iqamaNo: 1, monthYear: 1, version: 1 },
+    { companyId: 1, iqamaNo: 1, monthYear: 1, version: 1 },
     { unique: true }
 );
 

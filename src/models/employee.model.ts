@@ -5,6 +5,7 @@ import { FixedSalaryDetails } from "./fixedSalary.model";
 //BLUE BEAM COMPANY EMPLOYEE MODEL
 
 export interface EmployeeProfile {
+    companyId: string;
     iqamaNo: string;
     name: string;
     designation?: string;
@@ -28,6 +29,7 @@ export interface EmployeeConfig extends EmployeeProfile, EmployeeProrateSalaryDe
 export interface EmployeeConfigDocument extends EmployeeConfig { }
 
 const EmployeeSchema = new Schema<EmployeeConfigDocument>({
+    companyId: { type: String, required: true },
     iqamaNo: { type: String, required: true },
     name: { type: String, required: true },
     designation: { type: String },
@@ -54,7 +56,7 @@ const EmployeeSchema = new Schema<EmployeeConfigDocument>({
     timestamps: true
 });
 
-// Ensure at most one config exists per iqamaNo + toDate
-EmployeeSchema.index({ iqamaNo: 1, toDate: 1 }, { unique: true });
+// Ensure at most one config exists per companyId + iqamaNo + toDate
+EmployeeSchema.index({ companyId: 1, iqamaNo: 1, toDate: 1 }, { unique: true });
 
 export const EmployeeModel: Model<EmployeeConfigDocument> = model<EmployeeConfigDocument>("Employee", EmployeeSchema);

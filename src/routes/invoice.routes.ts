@@ -49,6 +49,7 @@ router.get(
 router.get(
   "/invoice-generated-status-all",
   async (req, res, next) => {
+    const company = req.query.company as string;
     try {
       const monthYear = moment().format("MMMM-YYYY");
 
@@ -57,9 +58,11 @@ router.get(
         {
           status: "active",
           toDate: OPEN_ENDED_DATE,
+          companyId: company
         },
         {
           iqamaNo: 1,
+          companyId: 1
         }
       ).lean();
 
@@ -67,10 +70,11 @@ router.get(
       const results = await Promise.all(
         employees.map(async (emp) => {
           const invoice = await InvoiceService.getLatestInvoice(
+            company,
             emp.iqamaNo,
             monthYear
           );
-          const attendanceExists = await AttendanceService.checkAttendanceExists(emp.iqamaNo, monthYear);
+          const attendanceExists = await AttendanceService.checkAttendanceExists(company, emp.iqamaNo, monthYear);
           return {
             iqamaNo: emp.iqamaNo,
             generated: !!invoice,
@@ -81,9 +85,9 @@ router.get(
       );
 
       // 3. Convert to map for frontend efficiency
-      const statusMap: Record<string, {invoiceExist: boolean, attendanceExist:boolean, lastGeneratedAt: Date | null | undefined}> = {};
+      const statusMap: Record<string, { invoiceExist: boolean, attendanceExist: boolean, lastGeneratedAt: Date | null | undefined }> = {};
       results.forEach(r => {
-        statusMap[String(r.iqamaNo)] = { invoiceExist: r.generated, attendanceExist: r.attendanceExist, lastGeneratedAt: r.lastGeneratedAt};
+        statusMap[String(r.iqamaNo)] = { invoiceExist: r.generated, attendanceExist: r.attendanceExist, lastGeneratedAt: r.lastGeneratedAt };
       });
 
       return res.status(200).json({

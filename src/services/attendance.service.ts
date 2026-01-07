@@ -10,26 +10,31 @@ export class AttendanceService {
      * 1. Create attendance for an employee for a specific month
      */
     static async createAttendance(
+        companyId: string,
         iqamaNo: string,
         monthYear: string,
         daysPresent: number,
         remarks?: string
     ): Promise<AttendanceDocument> {
         try {
+            if (!companyId) {
+                throw new Error("companyId is required");
+            }
+
             // Check if employee exists and get employee details
-            const employee = await this.getActiveEmployeeConfig(iqamaNo);
+            const employee = await this.getActiveEmployeeConfig(companyId, iqamaNo);
             if (!employee) {
-                throw new Error(`Employee with iqamaNo ${iqamaNo} not found`);
+                throw new Error(`Employee with iqamaNo ${iqamaNo} not found in company ${companyId}`);
             }
 
             // Check if attendance can be created for this month
-            const canCreate = await this.canCreateAttendanceForMonth(iqamaNo, monthYear);
+            const canCreate = await this.canCreateAttendanceForMonth(companyId, iqamaNo, monthYear);
             if (!canCreate) {
                 throw new Error(`Cannot create attendance for ${monthYear}. Employee may have resigned before this month or not joined yet.`);
             }
 
             // Check if attendance already exists
-            const existingAttendance = await this.checkAttendanceExists(iqamaNo, monthYear);
+            const existingAttendance = await this.checkAttendanceExists(companyId, iqamaNo, monthYear);
             if (existingAttendance) {
                 throw new Error(`Attendance already exists for ${iqamaNo} in ${monthYear}`);
             }
@@ -38,6 +43,7 @@ export class AttendanceService {
             const totalWorkingDays = this.getTotalWorkingDaysInMonth(monthYear);
 
             const attendanceData: Omit<Attendance, '_id'> = {
+                companyId,
                 iqamaNo: employee.iqamaNo,
                 name: employee.name,
                 monthYear,
@@ -57,14 +63,18 @@ export class AttendanceService {
      * 2. Create attendance for pending months from joining date to current month
      * For pending months: total working days = days present (as per requirement)
      */
-    static async createAttendanceForPendingMonths(iqamaNo: string): Promise<AttendanceDocument[]> {
+    static async createAttendanceForPendingMonths(companyId: string, iqamaNo: string): Promise<AttendanceDocument[]> {
         try {
-            const employee = await this.getActiveEmployeeConfig(iqamaNo);
-            if (!employee) {
-                throw new Error(`Employee with iqamaNo ${iqamaNo} not found`);
+            if (!companyId) {
+                throw new Error("companyId is required");
             }
 
-            const pendingMonths = await this.getPendingMonths(iqamaNo);
+            const employee = await this.getActiveEmployeeConfig(companyId, iqamaNo);
+            if (!employee) {
+                throw new Error(`Employee with iqamaNo ${iqamaNo} not found in company ${companyId}`);
+            }
+
+            const pendingMonths = await this.getPendingMonths(companyId, iqamaNo);
             const createdAttendances: AttendanceDocument[] = [];
 
             for (const monthYear of pendingMonths) {
@@ -73,6 +83,7 @@ export class AttendanceService {
                     const totalWorkingDays = this.getTotalWorkingDaysInMonth(monthYear);
 
                     const attendanceData: Omit<Attendance, '_id'> = {
+                        companyId,
                         iqamaNo: employee.iqamaNo,
                         name: employee.name,
                         monthYear,
@@ -98,9 +109,9 @@ export class AttendanceService {
     /**
      * 3. Check if attendance exists for an employee for a month
      */
-    static async checkAttendanceExists(iqamaNo: string, monthYear: string): Promise<boolean> {
+    static async checkAttendanceExists(companyId: string, iqamaNo: string, monthYear: string): Promise<boolean> {
         try {
-            const attendance = await AttendanceModel.findOne({ iqamaNo, monthYear });
+            const attendance = await AttendanceModel.findOne({ companyId, iqamaNo, monthYear });
             return !!attendance;
         } catch (error: any) {
             throw new Error(`Failed to check attendance existence: ${error.message}`);
@@ -110,9 +121,9 @@ export class AttendanceService {
     /**
      * 4. Get attendance for an employee for a specific month
      */
-    static async getAttendanceByMonth(iqamaNo: string, monthYear: string): Promise<AttendanceDocument | null> {
+    static async getAttendanceByMonth(companyId: string, iqamaNo: string, monthYear: string): Promise<AttendanceDocument | null> {
         try {
-            return await AttendanceModel.findOne({ iqamaNo, monthYear });
+            return await AttendanceModel.findOne({ companyId, iqamaNo, monthYear });
         } catch (error: any) {
             throw new Error(`Failed to get attendance: ${error.message}`);
         }
@@ -121,10 +132,10 @@ export class AttendanceService {
     /**
      * 5. Get all attendance records for an employee
      */
-    static async getAllAttendanceForEmployee(iqamaNo: string): Promise<AttendanceDocument[]> {
+    static async getAllAttendanceForEmployee(companyId: string, iqamaNo: string): Promise<AttendanceDocument[]> {
         try {
             return await AttendanceModel.aggregate([
-                { $match: { iqamaNo } },
+                { $match: { companyId, iqamaNo } },
                 {
                     $addFields: {
                         monthDate: {
@@ -151,12 +162,17 @@ export class AttendanceService {
      * 6. Update attendance for an employee for a month
      */
     static async updateAttendance(
+        companyId: string,
         iqamaNo: string,
         monthYear: string,
         daysPresent?: number,
         remarks?: string
     ): Promise<AttendanceDocument | null> {
         try {
+            if (!companyId) {
+                throw new Error("companyId is required");
+            }
+
             const updateData: any = {};
 
             if (daysPresent !== undefined) {
@@ -168,7 +184,7 @@ export class AttendanceService {
             }
 
             return await AttendanceModel.findOneAndUpdate(
-                { iqamaNo, monthYear },
+                { companyId, iqamaNo, monthYear },
                 updateData,
                 { new: true }
             );
@@ -180,9 +196,13 @@ export class AttendanceService {
     /**
      * 7. Delete attendance for an employee for a month
      */
-    static async deleteAttendance(iqamaNo: string, monthYear: string): Promise<boolean> {
+    static async deleteAttendance(companyId: string, iqamaNo: string, monthYear: string): Promise<boolean> {
         try {
-            const result = await AttendanceModel.deleteOne({ iqamaNo, monthYear });
+            if (!companyId) {
+                throw new Error("companyId is required");
+            }
+
+            const result = await AttendanceModel.deleteOne({ companyId, iqamaNo, monthYear });
             return result.deletedCount > 0;
         } catch (error: any) {
             throw new Error(`Failed to delete attendance: ${error.message}`);
@@ -193,14 +213,19 @@ export class AttendanceService {
      * 8. Create attendance for current month with smart logic
      */
     static async createAttendanceForCurrentMonth(
+        companyId: string,
         iqamaNo: string,
         daysPresent: number,
         remarks?: string
     ): Promise<AttendanceDocument[]> {
         try {
-            const employee = await this.getActiveEmployeeConfig(iqamaNo);
+            if (!companyId) {
+                throw new Error("companyId is required");
+            }
+
+            const employee = await this.getActiveEmployeeConfig(companyId, iqamaNo);
             if (!employee) {
-                throw new Error(`Employee with iqamaNo ${iqamaNo} not found`);
+                throw new Error(`Employee with iqamaNo ${iqamaNo} not found in company ${companyId}`);
             }
 
             const currentMonthYear = this.getCurrentMonthYear();
@@ -214,25 +239,26 @@ export class AttendanceService {
             }
 
             // Check if current month attendance already exists
-            const currentExists = await this.checkAttendanceExists(iqamaNo, currentMonthYear);
+            const currentExists = await this.checkAttendanceExists(companyId, iqamaNo, currentMonthYear);
             if (currentExists) {
                 throw new Error(`Attendance for current month ${currentMonthYear} already exists`);
             }
 
             // Get previous month
             const previousMonthYear = this.getPreviousMonthYear(currentMonthYear);
-            const previousExists = await this.checkAttendanceExists(iqamaNo, previousMonthYear);
+            const previousExists = await this.checkAttendanceExists(companyId, iqamaNo, previousMonthYear);
 
             const createdAttendances: AttendanceDocument[] = [];
 
             if (!previousExists) {
                 // Previous month doesn't exist, create all pending months up to previous month
-                const pendingAttendances = await this.createAttendanceForPendingMonths(iqamaNo);
+                const pendingAttendances = await this.createAttendanceForPendingMonths(companyId, iqamaNo);
                 createdAttendances.push(...pendingAttendances);
             }
 
             // Now create current month attendance
             const currentAttendance = await this.createAttendance(
+                companyId,
                 iqamaNo,
                 currentMonthYear,
                 daysPresent,
@@ -252,31 +278,37 @@ export class AttendanceService {
      * Generate attendance for all employees for a specific month
      */
     static async generateAttendanceForAllEmployees(
+        companyId: string,
         monthYear: string,
         daysPresent: number,
         remarks?: string
     ): Promise<AttendanceDocument[]> {
         try {
-            const activeEmployees = await this.getAllActiveEmployees();
+            if (!companyId) {
+                throw new Error("companyId is required");
+            }
+
+            const activeEmployees = await this.getAllActiveEmployees(companyId);
             const createdAttendances: AttendanceDocument[] = [];
 
             for (const employee of activeEmployees) {
                 try {
                     // Check if employee can have attendance for this month
-                    const canCreate = await this.canCreateAttendanceForMonth(employee.iqamaNo, monthYear);
+                    const canCreate = await this.canCreateAttendanceForMonth(companyId, employee.iqamaNo, monthYear);
                     if (!canCreate) {
                         console.warn(`Skipping ${employee.iqamaNo} for ${monthYear} - resigned before this month or not joined yet`);
                         continue;
                     }
 
                     // Check if attendance already exists
-                    const exists = await this.checkAttendanceExists(employee.iqamaNo, monthYear);
+                    const exists = await this.checkAttendanceExists(companyId, employee.iqamaNo, monthYear);
                     if (exists) {
                         console.warn(`Attendance already exists for ${employee.iqamaNo} in ${monthYear}`);
                         continue;
                     }
 
                     const attendance = await this.createAttendance(
+                        companyId,
                         employee.iqamaNo,
                         monthYear,
                         daysPresent,
@@ -297,36 +329,41 @@ export class AttendanceService {
 
     // Generate attendance for selected employees
     static async generateAttendanceForSelectedEmployees(
+        companyId: string,
         iqamaNos: string[],
         monthYear: string,
         daysPresent: number,
         remarks?: string
     ): Promise<AttendanceDocument[]> {
         try {
-            // const activeEmployees = await this.getAllActiveEmployees();
+            if (!companyId) {
+                throw new Error("companyId is required");
+            }
+
             const createdAttendances: AttendanceDocument[] = [];
 
             for (const iqamaNo of iqamaNos) {
                 try {
                     // Check if employee can have attendance for this month
-                    const canCreate = await this.canCreateAttendanceForMonth(iqamaNo, monthYear);
+                    const canCreate = await this.canCreateAttendanceForMonth(companyId, iqamaNo, monthYear);
                     if (!canCreate) {
                         console.warn(`Skipping ${iqamaNo} for ${monthYear} - resigned before this month or not joined yet`);
                         continue;
                     }
 
                     // Check if attendance already exists
-                    const exists = await this.checkAttendanceExists(iqamaNo, monthYear);
+                    const exists = await this.checkAttendanceExists(companyId, iqamaNo, monthYear);
                     if (exists) {
                         console.warn(`Attendance already exists for ${iqamaNo} in ${monthYear}`);
                         continue;
                     }
 
                     const attendance = await this.createAttendance(
+                        companyId,
                         iqamaNo,
                         monthYear,
                         daysPresent,
-                        remarks || 'Auto-generated for all employees'
+                        remarks || 'Auto-generated for selected employees'
                     );
                     createdAttendances.push(attendance);
                 } catch (error: any) {
@@ -336,21 +373,25 @@ export class AttendanceService {
 
             return createdAttendances;
         } catch (error: any) {
-            throw new Error(`Failed to generate attendance for all employees: ${error.message}`);
+            throw new Error(`Failed to generate attendance for selected employees: ${error.message}`);
         }
     }
 
     /**
-     * Create attendance for pending months for all employees
+     * Create attendance for pending months for all employees in a company
      */
-    static async createAttendanceForAllEmployeesPendingMonths(): Promise<{ [iqamaNo: string]: AttendanceDocument[] }> {
+    static async createAttendanceForAllEmployeesPendingMonths(companyId: string): Promise<{ [iqamaNo: string]: AttendanceDocument[] }> {
         try {
-            const activeEmployees = await this.getAllActiveEmployees();
+            if (!companyId) {
+                throw new Error("companyId is required");
+            }
+
+            const activeEmployees = await this.getAllActiveEmployees(companyId);
             const results: { [iqamaNo: string]: AttendanceDocument[] } = {};
 
             for (const employee of activeEmployees) {
                 try {
-                    const attendances = await this.createAttendanceForPendingMonths(employee.iqamaNo);
+                    const attendances = await this.createAttendanceForPendingMonths(companyId, employee.iqamaNo);
                     results[employee.iqamaNo] = attendances;
                 } catch (error: any) {
                     console.error(`Failed to create pending attendances for ${employee.iqamaNo}: ${error.message}`);
@@ -365,23 +406,31 @@ export class AttendanceService {
     }
 
     /**
-     * Get attendance for all employees for current month
+     * Get attendance for all employees for current month in a company
      */
-    static async getAttendanceForAllEmployeesCurrentMonth(): Promise<AttendanceDocument[]> {
+    static async getAttendanceForAllEmployeesCurrentMonth(companyId: string): Promise<AttendanceDocument[]> {
         try {
+            if (!companyId) {
+                throw new Error("companyId is required");
+            }
+
             const currentMonthYear = this.getCurrentMonthYear();
-            return await AttendanceModel.find({ monthYear: currentMonthYear }).sort({ name: 1 });
+            return await AttendanceModel.find({ companyId, monthYear: currentMonthYear }).sort({ name: 1 });
         } catch (error: any) {
             throw new Error(`Failed to get current month attendance for all employees: ${error.message}`);
         }
     }
 
     /**
-     * Get attendance for all employees for a specific month
+     * Get attendance for all employees for a specific month in a company
      */
-    static async getAttendanceForAllEmployeesByMonth(monthYear: string): Promise<AttendanceDocument[]> {
+    static async getAttendanceForAllEmployeesByMonth(companyId: string, monthYear: string): Promise<AttendanceDocument[]> {
         try {
-            return await AttendanceModel.find({ monthYear }).sort({ name: 1 });
+            if (!companyId) {
+                throw new Error("companyId is required");
+            }
+
+            return await AttendanceModel.find({ companyId, monthYear }).sort({ name: 1 });
         } catch (error: any) {
             throw new Error(`Failed to get attendance for all employees: ${error.message}`);
         }
@@ -427,9 +476,10 @@ export class AttendanceService {
     /**
      * Get active employee configuration
      */
-    private static async getActiveEmployeeConfig(iqamaNo: string): Promise<EmployeeConfigDocument | null> {
+    private static async getActiveEmployeeConfig(companyId: string, iqamaNo: string): Promise<EmployeeConfigDocument | null> {
         const currentDate = new Date();
         return await EmployeeModel.findOne({
+            companyId,
             iqamaNo,
             fromDate: { $lte: currentDate },
             toDate: { $gte: currentDate }
@@ -437,11 +487,12 @@ export class AttendanceService {
     }
 
     /**
-     * Get all active employees
+     * Get all active employees for a company
      */
-    private static async getAllActiveEmployees(): Promise<EmployeeConfigDocument[]> {
+    private static async getAllActiveEmployees(companyId: string): Promise<EmployeeConfigDocument[]> {
         const currentDate = new Date();
         return await EmployeeModel.find({
+            companyId,
             status: 'active',
             fromDate: { $lte: currentDate },
             toDate: { $gte: currentDate }
@@ -451,8 +502,8 @@ export class AttendanceService {
     /**
      * Check if attendance can be created for a specific month
      */
-    private static async canCreateAttendanceForMonth(iqamaNo: string, monthYear: string): Promise<boolean> {
-        const employee = await this.getActiveEmployeeConfig(iqamaNo);
+    private static async canCreateAttendanceForMonth(companyId: string, iqamaNo: string, monthYear: string): Promise<boolean> {
+        const employee = await this.getActiveEmployeeConfig(companyId, iqamaNo);
         if (!employee) return false;
 
         // Check joining date
@@ -475,8 +526,8 @@ export class AttendanceService {
     /**
      * Get pending months for an employee
      */
-    private static async getPendingMonths(iqamaNo: string): Promise<string[]> {
-        const employee = await this.getActiveEmployeeConfig(iqamaNo);
+    private static async getPendingMonths(companyId: string, iqamaNo: string): Promise<string[]> {
+        const employee = await this.getActiveEmployeeConfig(companyId, iqamaNo);
         if (!employee) return [];
 
         const joiningMonthYear = this.formatDateToMonthYear(employee.joiningDate);
@@ -495,7 +546,7 @@ export class AttendanceService {
         }
 
         const allMonths = this.getMonthsBetween(joiningMonthYear, endMonthYear);
-        const existingAttendances = await AttendanceModel.find({ iqamaNo }).select('monthYear');
+        const existingAttendances = await AttendanceModel.find({ companyId, iqamaNo }).select('monthYear');
         const existingMonths = existingAttendances.map(att => att.monthYear);
 
         return allMonths.filter(month => !existingMonths.includes(month));

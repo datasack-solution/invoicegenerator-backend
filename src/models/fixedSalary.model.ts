@@ -2,6 +2,7 @@ import { Document, model, Model, Schema } from "mongoose";
 
 // Matches the FixedSalaryDetails interface exactly
 export interface FixedSalaryDetails {
+    companyId: string;
     medicalInsurance: number;
     iqamaRenewalCost: number;
     gosi: number;
@@ -16,6 +17,7 @@ export interface FixedSalaryDocument extends FixedSalaryDetails, Document { }
 
 const FixedSalarySchema = new Schema<FixedSalaryDocument>(
     {
+        companyId: { type: String, required: true, unique: true }, // One fixed salary config per company
         medicalInsurance: { type: Number, required: true },
         iqamaRenewalCost: { type: Number, required: true },
         gosi: { type: Number, required: true },

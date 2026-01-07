@@ -4,6 +4,16 @@ import { FixedSalaryModel, FixedSalaryDetails } from "../models/fixedSalary.mode
 export const createFixedSalary = async (payload: FixedSalaryDetails) => {
   const session = await mongoose.startSession();
   try {
+    if (!payload.companyId) {
+      throw new Error("companyId is required");
+    }
+
+    // Check if fixed salary already exists for this company
+    const existing = await FixedSalaryModel.findOne({ companyId: payload.companyId });
+    if (existing) {
+      throw new Error("Fixed salary configuration already exists for this company");
+    }
+
     let created: any = null;
     await session.withTransaction(async () => {
       created = await FixedSalaryModel.create([payload], { session });
@@ -14,9 +24,11 @@ export const createFixedSalary = async (payload: FixedSalaryDetails) => {
   }
 };
 
-
-export const getFixedSalary = async () => {
-  return await FixedSalaryModel.findOne({}).lean()
+export const getFixedSalary = async (companyId: string) => {
+  if (!companyId) {
+    throw new Error("companyId is required");
+  }
+  return await FixedSalaryModel.findOne({ companyId }).lean();
 };
 
 export const updateFixedSalary = async (id: string, changes: Partial<FixedSalaryDetails>) => {
@@ -24,7 +36,9 @@ export const updateFixedSalary = async (id: string, changes: Partial<FixedSalary
   try {
     let updated: any = null;
     await session.withTransaction(async () => {
-      updated = await FixedSalaryModel.findByIdAndUpdate(id, changes, { new: true, session });
+      // Ensure companyId is not being changed
+      const { companyId, ...updateChanges } = changes;
+      updated = await FixedSalaryModel.findByIdAndUpdate(id, updateChanges, { new: true, session });
     });
     return updated;
   } finally {

@@ -4,21 +4,34 @@ import { createFixedSalary, updateFixedSalary, deleteFixedSalary, getFixedSalary
 export const createFixedSalaryController = async (req: Request, res: Response) => {
   try {
     const payload = req.body;
-    const created = await createFixedSalary(payload);
+    const { company } = req.query;
+    
+    if (!company) {
+      return res.status(400).json({ message: "Company parameter is required" });
+    }
+
+    const payloadWithCompany = { ...payload, companyId: company };
+    const created = await createFixedSalary(payloadWithCompany);
     return res.status(201).json({ message: "Created", data: created });
-  } catch (err) {
+  } catch (err: any) {
     console.error(err);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: err.message || "Internal server error" });
   }
 };
 
 export const getFixedSalaryController = async (req: Request, res: Response) => {
   try {
-    const fixedSalary = await getFixedSalary();
-    return res.status(201).json({ message: "Retrieved", data: fixedSalary });
-  } catch (err) {
+    const { company } = req.query;
+    
+    if (!company) {
+      return res.status(400).json({ message: "Company parameter is required" });
+    }
+
+    const fixedSalary = await getFixedSalary(company as string);
+    return res.status(200).json({ message: "Retrieved", data: fixedSalary });
+  } catch (err: any) {
     console.error(err);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: err.message || "Internal server error" });
   }
 };
 
@@ -29,9 +42,9 @@ export const updateFixedSalaryController = async (req: Request, res: Response) =
     const updated = await updateFixedSalary(id, changes);
     if (!updated) return res.status(404).json({ message: "Not found" });
     return res.status(200).json({ message: "Updated", data: updated });
-  } catch (err) {
+  } catch (err: any) {
     console.error(err);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: err.message || "Internal server error" });
   }
 };
 
@@ -41,8 +54,8 @@ export const deleteFixedSalaryController = async (req: Request, res: Response) =
     const deleted = await deleteFixedSalary(id);
     if (!deleted) return res.status(404).json({ message: "Not found" });
     return res.status(200).json({ message: "Deleted" });
-  } catch (err) {
+  } catch (err: any) {
     console.error(err);
-    return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: err.message || "Internal server error" });
   }
 };

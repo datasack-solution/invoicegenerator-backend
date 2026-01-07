@@ -12,7 +12,14 @@ import {
 export const createEmployeeConfigController = async (req: Request, res: Response) => {
   try {
     const payload = req.body;
-    const created = await createEmployeeConfig(payload);
+    const { company } = req.query;
+    
+    if (!company) {
+      return res.status(400).json({ message: "Company parameter is required" });
+    }
+
+    const payloadWithCompany = { ...payload, companyId: company };
+    const created = await createEmployeeConfig(payloadWithCompany);
     return res.status(201).json({ message: "Created", data: created });
   } catch (err: any) {
     console.error(err);
@@ -36,7 +43,14 @@ export const updateEmployeeConfigController = async (req: Request, res: Response
 export const recreateEmployeeConfigController = async (req: Request, res: Response) => {
   try {
     const payload = req.body;
-    const created = await recreateEmployeeConfig(payload);
+    const { company } = req.query;
+    
+    if (!company) {
+      return res.status(400).json({ message: "Company parameter is required" });
+    }
+
+    const payloadWithCompany = { ...payload, companyId: company };
+    const created = await recreateEmployeeConfig(payloadWithCompany);
     return res.status(201).json({ message: "Recreated", data: created });
   } catch (err: any) {
     console.error(err);
@@ -47,7 +61,13 @@ export const recreateEmployeeConfigController = async (req: Request, res: Respon
 export const getEmployeeByIqamaController = async (req: Request, res: Response) => {
   try {
     const { iqamaNo } = req.params;
-    const data = await getByIqama(iqamaNo);
+    const { company } = req.query;
+    
+    if (!company) {
+      return res.status(400).json({ message: "Company parameter is required" });
+    }
+
+    const data = await getByIqama(company as string, iqamaNo);
     return res.status(200).json({ data });
   } catch (err: any) {
     console.error(err);
@@ -57,7 +77,13 @@ export const getEmployeeByIqamaController = async (req: Request, res: Response) 
 
 export const getAllEmployeesController = async (req: Request, res: Response) => {
   try {
-    const data = await getAllLatest();
+    const { company } = req.query;
+    
+    if (!company) {
+      return res.status(400).json({ message: "Company parameter is required" });
+    }
+
+    const data = await getAllLatest(company as string);
     return res.status(200).json({ data });
   } catch (err: any) {
     console.error(err);
@@ -80,7 +106,13 @@ export const getEmployeeByIdController = async (req: Request, res: Response) => 
 export const deleteLatestByIqamaController = async (req: Request, res: Response) => {
   try {
     const { iqamaNo } = req.params;
-    const result = await deleteLatestByIqama(iqamaNo);
+    const { company } = req.query;
+    
+    if (!company) {
+      return res.status(400).json({ message: "Company parameter is required" });
+    }
+
+    const result = await deleteLatestByIqama(company as string, iqamaNo);
     return res.status(200).json({ message: "Deleted latest config", result });
   } catch (err: any) {
     console.error(err);

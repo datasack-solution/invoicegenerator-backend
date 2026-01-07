@@ -94,16 +94,17 @@ export class InvoiceService {
   ========================================================== */
 
   /**
-   * Finalize all past invoices that are still marked as non-final
+   * Finalize all past invoices that are still marked as non-final for a specific company
    * This runs efficiently using a single MongoDB update query
    */
-  private static async finalizePastInvoices(): Promise<void> {
+  private static async finalizePastInvoices(companyId: string): Promise<void> {
     try {
       const now = moment();
       const currentMonthYear = now.format("MMMM-YYYY");
 
-      // Get all unique month-years that are before current month
+      // Get all unique month-years that are before current month for this company
       const pastMonthYears = await InvoiceModel.distinct("monthYear", {
+        companyId,
         isFinal: false
       });
 
@@ -116,9 +117,10 @@ export class InvoiceService {
         return; // No past invoices to finalize
       }
 
-      // Bulk update all past invoices to final in a single query
+      // Bulk update all past invoices to final in a single query for this company
       const result = await InvoiceModel.updateMany(
         {
+          companyId,
           monthYear: { $in: pastMonths },
           isFinal: false
         },
@@ -131,7 +133,7 @@ export class InvoiceService {
       );
 
       if (result.modifiedCount > 0) {
-        console.log(`✅ Finalized ${result.modifiedCount} past invoices for months: ${pastMonths.join(", ")}`);
+        console.log(`✅ Finalized ${result.modifiedCount} past invoices for company ${companyId} for months: ${pastMonths.join(", ")}`);
       }
     } catch (error) {
       console.error("❌ Error finalizing past invoices:", error);
@@ -141,6 +143,7 @@ export class InvoiceService {
 
 
   static async generateInvoice(params: {
+    companyId: string;
     iqamaNo: string;
     monthYear: string; // "January-2026"
     daysPresent: number,
@@ -148,11 +151,15 @@ export class InvoiceService {
     invoiceRemarks?: string; // Add invoice remarks parameter
     extraComponents?: InvoiceComponent[];
   }) {
-    const { iqamaNo, monthYear, daysPresent, remarks, invoiceRemarks } = params;
+    const { companyId, iqamaNo, monthYear, daysPresent, remarks, invoiceRemarks } = params;
     const extraComponents = params.extraComponents ?? [];
 
+    if (!companyId) {
+      throw new Error("companyId is required");
+    }
+
     // 🔄 Auto-finalize past invoices (efficient batch operation)
-    await InvoiceService.finalizePastInvoices();
+    await InvoiceService.finalizePastInvoices(companyId);
 
     const now = moment();
     const invoiceMonth = moment(monthYear, "MMMM-YYYY");
@@ -187,6 +194,7 @@ export class InvoiceService {
     --------------------------------------------- */
 
     const existingInvoice = await InvoiceModel.findOne({
+      companyId,
       iqamaNo,
       monthYear
     }, null, session);
@@ -205,6 +213,7 @@ export class InvoiceService {
     const monthEnd = invoiceMonth.endOf("month").toDate();
 
     const employeeConfig = await EmployeeModel.findOne({
+      companyId,
       iqamaNo,
       fromDate: { $lte: monthEnd },
       toDate: { $gte: monthStart }
@@ -231,6 +240,7 @@ export class InvoiceService {
 
     try {
       let attendance = await AttendanceModel.findOne({
+        companyId,
         iqamaNo,
         monthYear
       });
@@ -238,6 +248,7 @@ export class InvoiceService {
       if (!attendance) {
         attendance = await AttendanceModel.create(
           [{
+            companyId,
             iqamaNo,
             monthYear,
             totalWorkingDays,
@@ -312,6 +323,7 @@ export class InvoiceService {
       --------------------------------------------- */
 
       const payload = {
+        companyId,
         invoiceNo,
 
         iqamaNo,
@@ -377,17 +389,23 @@ export class InvoiceService {
   ========================================================== */
 
   static async bulkGenerateInvoices(params: {
+    companyId: string;
     iqamaNos: string[];
     monthYear: string;
     extraComponentsMap?: Record<string, InvoiceComponent[]>;
     remarks?: string;
   }) {
-    const { iqamaNos, monthYear } = params;
+    const { companyId, iqamaNos, monthYear } = params;
     const extraComponentsMap = params.extraComponentsMap ?? {};
     const remarks = params.remarks ?? "Bulk auto attendance";
 
+    if (!companyId) {
+      throw new Error("companyId is required");
+    }
+
     // 🔄 Auto-finalize past invoices
-    await InvoiceService.finalizePastInvoices();
+    await InvoiceService.finalizePastInvoices(companyId);
+    // await InvoiceService.finalizePastInvoices();
 
     const invoiceMonth = moment(monthYear, "MMMM-YYYY");
     if (!invoiceMonth.isValid()) {
@@ -406,6 +424,7 @@ export class InvoiceService {
     for (const iqamaNo of iqamaNos) {
       try {
         const invoice = await InvoiceService.generateInvoice({
+          companyId,
           iqamaNo,
           monthYear,
           daysPresent: totalWorkingDays, // ✅ FULL ATTENDANCE
@@ -437,10 +456,15 @@ export class InvoiceService {
   }
 
   static async deleteInvoice(params: {
+    companyId: string;
     iqamaNo: string;
     monthYear: string; // "January-2026"
   }) {
-    const { iqamaNo, monthYear } = params;
+    const { companyId, iqamaNo, monthYear } = params;
+
+    if (!companyId) {
+      throw new Error("companyId is required");
+    }
 
     const now = moment().startOf("month");
     const invoiceMonth = moment(monthYear, "MMMM-YYYY");
@@ -454,6 +478,7 @@ export class InvoiceService {
     --------------------------------------------- */
 
     const invoice = await InvoiceModel.findOne({
+      companyId,
       iqamaNo,
       monthYear
     });
@@ -500,6 +525,7 @@ export class InvoiceService {
       --------------------------------------------- */
 
       const attendance = await AttendanceModel.findOne({
+        companyId,
         iqamaNo,
         monthYear
       }).session(session);
@@ -531,20 +557,25 @@ export class InvoiceService {
   ========================================================== */
 
   /**
-   * Manually trigger finalization of past invoices
+   * Manually trigger finalization of past invoices for a specific company
    * Can be called from admin endpoints or maintenance operations
    */
-  static async manuallyFinalizePastInvoices(): Promise<{
+  static async manuallyFinalizePastInvoices(companyId: string): Promise<{
     success: boolean;
     message: string;
     finalizedCount: number;
     monthsFinalized: string[];
   }> {
     try {
+      if (!companyId) {
+        throw new Error("companyId is required");
+      }
+
       const now = moment();
 
-      // Get all unique month-years that are before current month and not final
+      // Get all unique month-years that are before current month and not final for this company
       const pastMonthYears = await InvoiceModel.distinct("monthYear", {
+        companyId,
         isFinal: false
       });
 
@@ -562,9 +593,10 @@ export class InvoiceService {
         };
       }
 
-      // Bulk update all past invoices to final
+      // Bulk update all past invoices to final for this company
       const result = await InvoiceModel.updateMany(
         {
+          companyId,
           monthYear: { $in: pastMonths },
           isFinal: false
         },
@@ -592,7 +624,7 @@ export class InvoiceService {
     }
   }
 
-  static async getFinalizationStats(): Promise<{
+  static async getFinalizationStats(companyId: string): Promise<{
     totalInvoices: number;
     finalizedInvoices: number;
     pendingFinalization: number;
@@ -600,6 +632,10 @@ export class InvoiceService {
     currentMonthInvoices: number;
     futureMonthInvoices: number;
   }> {
+    if (!companyId) {
+      throw new Error("companyId is required");
+    }
+
     const now = moment().startOf("month");
 
     const [
@@ -607,9 +643,9 @@ export class InvoiceService {
       finalizedInvoices,
       allMonthYears,
     ] = await Promise.all([
-      InvoiceModel.countDocuments(),
-      InvoiceModel.countDocuments({ isFinal: true }),
-      InvoiceModel.distinct("monthYear"),
+      InvoiceModel.countDocuments({ companyId }),
+      InvoiceModel.countDocuments({ companyId, isFinal: true }),
+      InvoiceModel.distinct("monthYear", { companyId }),
     ]);
 
     let pendingFinalization = 0;
@@ -623,6 +659,7 @@ export class InvoiceService {
       if (invoiceMonth.isBefore(now, "month")) {
         // ✅ PAST MONTH
         const pendingCount = await InvoiceModel.countDocuments({
+          companyId,
           monthYear,
           isFinal: false,
         });
@@ -634,11 +671,11 @@ export class InvoiceService {
       }
       else if (invoiceMonth.isSame(now, "month")) {
         // CURRENT MONTH
-        currentMonthInvoices += await InvoiceModel.countDocuments({ monthYear });
+        currentMonthInvoices += await InvoiceModel.countDocuments({ companyId, monthYear });
       }
       else {
         // FUTURE MONTH
-        futureMonthInvoices += await InvoiceModel.countDocuments({ monthYear });
+        futureMonthInvoices += await InvoiceModel.countDocuments({ companyId, monthYear });
       }
     }
 
@@ -655,26 +692,28 @@ export class InvoiceService {
 
 
   static async getLatestInvoice(
+    companyId: string,
     iqamaNo: string,
     monthYear: string
   ) {
     return InvoiceModel
-      .findOne({ iqamaNo, monthYear })
+      .findOne({ companyId, iqamaNo, monthYear })
       .sort({ version: -1 });
   }
 
   static async getInvoiceHistory(
+    companyId: string,
     iqamaNo: string,
     monthYear: string
   ) {
     return InvoiceModel
-      .find({ iqamaNo, monthYear })
+      .find({ companyId, iqamaNo, monthYear })
       .sort({ version: -1 });
   }
 
-  static async getInvoicesForEmployee(iqamaNo: string) {
+  static async getInvoicesForEmployee(companyId: string, iqamaNo: string) {
     return InvoiceModel
-      .find({ iqamaNo })
+      .find({ companyId, iqamaNo })
       .sort({ createdAt: -1 });
   }
 }

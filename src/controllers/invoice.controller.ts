@@ -241,6 +241,11 @@ export class InvoiceController {
   static async generateInvoice(req: Request, res: Response) {
     try {
       const { iqamaNo, monthYear, daysPresent, remarks, invoiceRemarks, extraComponents } = req.body;
+      const { company } = req.query;
+
+      if (!company) {
+        return res.status(400).json({ message: "Company parameter is required" });
+      }
 
       if (!iqamaNo) {
         return res
@@ -265,6 +270,7 @@ export class InvoiceController {
       }
 
       const invoice = await InvoiceService.generateInvoice({
+        companyId: company as string,
         iqamaNo,
         monthYear,
         daysPresent,
@@ -291,6 +297,11 @@ export class InvoiceController {
   static async bulkGenerateInvoices(req: Request, res: Response) {
     try {
       const { iqamaNos, monthYear, extraComponentsMap, remarks } = req.body;
+      const { company } = req.query;
+
+      if (!company) {
+        return res.status(400).json({ message: "Company parameter is required" });
+      }
 
       if (!Array.isArray(iqamaNos) || iqamaNos.length === 0) {
         return res.status(400).json({
@@ -305,6 +316,7 @@ export class InvoiceController {
       }
 
       const report = await InvoiceService.bulkGenerateInvoices({
+        companyId: company as string,
         iqamaNos,
         monthYear,
         extraComponentsMap,
@@ -330,6 +342,15 @@ export class InvoiceController {
   static async deleteInvoice(req: Request, res: Response) {
     try {
       const { iqamaNo, monthYear } = req.body;
+      const { company } = req.query;
+
+      if (!company) {
+        return res.status(400).json({ message: "Company parameter is required" });
+      }
+
+      if (!iqamaNo) {
+        return res.status(400).json({ message: "iqamaNo is required" });
+      }
 
       if (!monthYear || !isValidMonthYear(monthYear)) {
         return res.status(400).json({
@@ -338,11 +359,12 @@ export class InvoiceController {
       }
 
       const report = await InvoiceService.deleteInvoice({
+        companyId: company as string,
         iqamaNo,
         monthYear,
       });
 
-      return res.status(201).json(report);
+      return res.status(200).json(report);
     } catch (error: any) {
       return res.status(500).json({
         success: false,
@@ -352,12 +374,17 @@ export class InvoiceController {
   }
 
   /**
-   * GET /api/invoices/latest?iqamaNo=&monthYear=
+   * GET /api/invoices/latest?iqamaNo=&monthYear=&company=
    */
   static async getLatestInvoice(req: Request, res: Response) {
     try {
       const iqamaNo = req.query.iqamaNo as string;
       const monthYear = req.query.monthYear as string;
+      const company = req.query.company as string;
+
+      if (!company) {
+        return res.status(400).json({ message: "Company parameter is required" });
+      }
 
       if (!iqamaNo || !monthYear || !isValidMonthYear(monthYear)) {
         return res.status(400).json({
@@ -366,6 +393,7 @@ export class InvoiceController {
       }
 
       const invoice = await InvoiceService.getLatestInvoice(
+        company,
         iqamaNo,
         monthYear
       );
@@ -389,12 +417,17 @@ export class InvoiceController {
   }
 
   /**
-   * GET /api/invoices/history?iqamaNo=&monthYear=
+   * GET /api/invoices/history?iqamaNo=&monthYear=&company=
    */
   static async getInvoiceHistory(req: Request, res: Response) {
     try {
       const iqamaNo = req.query.iqamaNo as string;
       const monthYear = req.query.monthYear as string;
+      const company = req.query.company as string;
+
+      if (!company) {
+        return res.status(400).json({ message: "Company parameter is required" });
+      }
 
       if (!iqamaNo || !monthYear || !isValidMonthYear(monthYear)) {
         return res.status(400).json({
@@ -403,6 +436,7 @@ export class InvoiceController {
       }
 
       const invoices = await InvoiceService.getInvoiceHistory(
+        company,
         iqamaNo,
         monthYear
       );
@@ -420,11 +454,16 @@ export class InvoiceController {
   }
 
   /**
-   * GET /api/invoices/employee/:iqamaNo
+   * GET /api/invoices/employee/:iqamaNo?company=
    */
   static async getInvoicesForEmployee(req: Request, res: Response) {
     try {
       const { iqamaNo } = req.params;
+      const { company } = req.query;
+
+      if (!company) {
+        return res.status(400).json({ message: "Company parameter is required" });
+      }
 
       if (!iqamaNo) {
         return res
@@ -433,6 +472,7 @@ export class InvoiceController {
       }
 
       const invoices = await InvoiceService.getInvoicesForEmployee(
+        company as string,
         iqamaNo
       );
 
@@ -450,11 +490,17 @@ export class InvoiceController {
 
   /**
    * POST /api/invoices/finalize-past
-   * Manually trigger finalization of all past invoices
+   * Manually trigger finalization of all past invoices for a company
    */
   static async finalizePastInvoices(req: Request, res: Response) {
     try {
-      const result = await InvoiceService.manuallyFinalizePastInvoices();
+      const { company } = req.query;
+
+      if (!company) {
+        return res.status(400).json({ message: "Company parameter is required" });
+      }
+
+      const result = await InvoiceService.manuallyFinalizePastInvoices(company as string);
 
       return res.status(200).json({
         success: result.success,
@@ -473,12 +519,18 @@ export class InvoiceController {
   }
 
   /**
-   * GET /api/invoices/finalization-stats
-   * Get statistics about invoice finalization status
+   * GET /api/invoices/finalization-stats?company=
+   * Get statistics about invoice finalization status for a company
    */
   static async getFinalizationStats(req: Request, res: Response) {
     try {
-      const stats = await InvoiceService.getFinalizationStats();
+      const { company } = req.query;
+
+      if (!company) {
+        return res.status(400).json({ message: "Company parameter is required" });
+      }
+
+      const stats = await InvoiceService.getFinalizationStats(company as string);
 
       return res.status(200).json({
         success: true,
@@ -488,6 +540,33 @@ export class InvoiceController {
       return res.status(500).json({
         success: false,
         message: error.message || "Failed to fetch finalization stats"
+      });
+    }
+  }
+
+  /**
+   * GET /api/invoices/invoice-generated-status-all?company=
+   * Get invoice generation status for all employees in a company
+   */
+  static async getInvoiceGeneratedStatusAll(req: Request, res: Response) {
+    try {
+      const { company } = req.query;
+
+      if (!company) {
+        return res.status(400).json({ message: "Company parameter is required" });
+      }
+
+      // This would need to be implemented in the service
+      // For now, return a placeholder response
+      return res.status(200).json({
+        success: true,
+        statusMap: {},
+        message: "Invoice status endpoint - to be implemented"
+      });
+    } catch (error: any) {
+      return res.status(500).json({
+        success: false,
+        message: error.message || "Failed to fetch invoice status"
       });
     }
   }
