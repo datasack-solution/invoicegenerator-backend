@@ -9,6 +9,7 @@ import invoiceRoutes from "./routes/invoice.routes";
 const app = express();
 
 app.use(cors());
+
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
