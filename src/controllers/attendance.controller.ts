@@ -4,7 +4,8 @@ import { AttendanceService } from "../services/attendance.service";
 // Single Employee Controllers
 export const createAttendanceController = async (req: Request, res: Response) => {
     try {
-        const {company, iqamaNo, monthYear, daysPresent, remarks } = req.body;
+        const { iqamaNo, monthYear, daysPresent, remarks } = req.body;
+        const {company} = req.query
 
         if (!iqamaNo || !monthYear || daysPresent === undefined) {
             return res.status(400).json({
@@ -12,7 +13,7 @@ export const createAttendanceController = async (req: Request, res: Response) =>
             });
         }
 
-        const attendance = await AttendanceService.createAttendance(company, iqamaNo, monthYear, daysPresent, remarks);
+        const attendance = await AttendanceService.createAttendance(company as string, iqamaNo, monthYear, daysPresent, remarks);
         
         return res.status(201).json({
             message: "Attendance created successfully",
@@ -28,7 +29,7 @@ export const createAttendanceController = async (req: Request, res: Response) =>
 export const createPendingAttendanceController = async (req: Request, res: Response) => {
     try {
         const { iqamaNo } = req.body;
-        const {company} = req.params
+        const {company} = req.query
 
         if (!iqamaNo) {
             return res.status(400).json({
@@ -36,7 +37,7 @@ export const createPendingAttendanceController = async (req: Request, res: Respo
             });
         }
 
-        const attendances = await AttendanceService.createAttendanceForPendingMonths(company, iqamaNo);
+        const attendances = await AttendanceService.createAttendanceForPendingMonths(company as string, iqamaNo);
         
         return res.status(201).json({
             message: "Pending attendances created successfully",
@@ -52,9 +53,11 @@ export const createPendingAttendanceController = async (req: Request, res: Respo
 
 export const checkAttendanceExistsController = async (req: Request, res: Response) => {
     try {
-        const { iqamaNo, monthYear, company } = req.params;
+        const { iqamaNo, monthYear } = req.params;
+                const {company} = req.query
 
-        const exists = await AttendanceService.checkAttendanceExists(company, iqamaNo, monthYear);
+
+        const exists = await AttendanceService.checkAttendanceExists(company as string, iqamaNo, monthYear);
         
         return res.status(200).json({
             message: "Attendance check completed",
@@ -69,10 +72,12 @@ export const checkAttendanceExistsController = async (req: Request, res: Respons
 
 export const getAttendanceByMonthController = async (req: Request, res: Response) => {
     try {
-        const { iqamaNo, monthYear, company } = req.params;
+        const { iqamaNo, monthYear } = req.params;
+                        const {company} = req.query
+
         console.log("get attendance by month")
 
-        const attendance = await AttendanceService.getAttendanceByMonth(company, iqamaNo, monthYear);
+        const attendance = await AttendanceService.getAttendanceByMonth(company as string, iqamaNo, monthYear);
         
         if (!attendance) {
             return res.status(404).json({
@@ -112,10 +117,12 @@ export const getAllAttendanceForEmployeeController = async (req: Request, res: R
 
 export const updateAttendanceController = async (req: Request, res: Response) => {
     try {
-        const { iqamaNo, monthYear, company } = req.params;
+        const { iqamaNo, monthYear } = req.params;
         const { daysPresent, remarks } = req.body;
+                        const {company} = req.query
 
-        const attendance = await AttendanceService.updateAttendance(company,iqamaNo, monthYear, daysPresent, remarks);
+
+        const attendance = await AttendanceService.updateAttendance(company as string,iqamaNo, monthYear, daysPresent, remarks);
         
         if (!attendance) {
             return res.status(404).json({
@@ -136,9 +143,10 @@ export const updateAttendanceController = async (req: Request, res: Response) =>
 
 export const deleteAttendanceController = async (req: Request, res: Response) => {
     try {
-        const { iqamaNo, monthYear, company } = req.params;
+        const { iqamaNo, monthYear } = req.params;
+                        const {company} = req.query
 
-        const deleted = await AttendanceService.deleteAttendance(company, iqamaNo, monthYear);
+        const deleted = await AttendanceService.deleteAttendance(company as string, iqamaNo, monthYear);
         
         if (!deleted) {
             return res.status(404).json({
@@ -158,7 +166,8 @@ export const deleteAttendanceController = async (req: Request, res: Response) =>
 
 export const createCurrentMonthAttendanceController = async (req: Request, res: Response) => {
     try {
-        const { iqamaNo, daysPresent, remarks, company } = req.body;
+        const { iqamaNo, daysPresent, remarks } = req.body;
+        const {company} = req.query
 
         if (!iqamaNo || daysPresent === undefined) {
             return res.status(400).json({
@@ -166,7 +175,7 @@ export const createCurrentMonthAttendanceController = async (req: Request, res: 
             });
         }
 
-        const attendances = await AttendanceService.createAttendanceForCurrentMonth(company, iqamaNo, daysPresent, remarks);
+        const attendances = await AttendanceService.createAttendanceForCurrentMonth(company as string, iqamaNo, daysPresent, remarks);
         
         return res.status(201).json({
             message: "Current month attendance created successfully",
@@ -184,7 +193,7 @@ export const createCurrentMonthAttendanceController = async (req: Request, res: 
 export const generateAttendanceForAllEmployeesController = async (req: Request, res: Response) => {
     try {
         const { monthYear, daysPresent, remarks } = req.body;
-        const {company} = req.params
+        const {company} = req.query
 
         if (!monthYear || daysPresent === undefined) {
             return res.status(400).json({
@@ -192,7 +201,7 @@ export const generateAttendanceForAllEmployeesController = async (req: Request, 
             });
         }
 
-        const attendances = await AttendanceService.generateAttendanceForAllEmployees(company, monthYear, daysPresent, remarks);
+        const attendances = await AttendanceService.generateAttendanceForAllEmployees(company as string, monthYear, daysPresent, remarks);
         
         return res.status(201).json({
             message: "Attendance generated for all employees successfully",
@@ -210,7 +219,7 @@ export const generateAttendanceForAllEmployeesController = async (req: Request, 
 export const generateAttendanceForSelectedEmployeesController = async (req: Request, res: Response) => {
     try {
         const {iqamaNos, monthYear, daysPresent, remarks } = req.body;
-        const {company} = req.params
+        const {company} = req.query
 
         if (!monthYear || daysPresent === undefined) {
             return res.status(400).json({
@@ -218,7 +227,7 @@ export const generateAttendanceForSelectedEmployeesController = async (req: Requ
             });
         }
 
-        const attendances = await AttendanceService.generateAttendanceForSelectedEmployees(company, iqamaNos,monthYear, daysPresent, remarks);
+        const attendances = await AttendanceService.generateAttendanceForSelectedEmployees(company  as string, iqamaNos,monthYear, daysPresent, remarks);
         
         return res.status(201).json({
             message: "Attendance generated for all employees successfully",
@@ -233,9 +242,9 @@ export const generateAttendanceForSelectedEmployeesController = async (req: Requ
 };
 
 export const createPendingAttendanceForAllEmployeesController = async (req: Request, res: Response) => {
-    const {company}=req.params
+    const {company}=req.query
     try {
-        const results = await AttendanceService.createAttendanceForAllEmployeesPendingMonths(company);
+        const results = await AttendanceService.createAttendanceForAllEmployeesPendingMonths(company as string);
         
         const totalCount = Object.values(results).reduce((sum, attendances) => sum + attendances.length, 0);
         
@@ -252,9 +261,9 @@ export const createPendingAttendanceForAllEmployeesController = async (req: Requ
 };
 
 export const getCurrentMonthAttendanceForAllController = async (req: Request, res: Response) => {
-    const {company} = req.params
+    const {company} = req.query
     try {
-        const attendances = await AttendanceService.getAttendanceForAllEmployeesCurrentMonth(company);
+        const attendances = await AttendanceService.getAttendanceForAllEmployeesCurrentMonth(company as string);
         
         return res.status(200).json({
             message: "Current month attendance for all employees retrieved successfully",
@@ -270,9 +279,10 @@ export const getCurrentMonthAttendanceForAllController = async (req: Request, re
 
 export const getAttendanceForAllEmployeesByMonthController = async (req: Request, res: Response) => {
     try {
-        const { monthYear, company } = req.params;
+        const { monthYear } = req.params;
+    const {company} = req.query
 
-        const attendances = await AttendanceService.getAttendanceForAllEmployeesByMonth(company, monthYear);
+        const attendances = await AttendanceService.getAttendanceForAllEmployeesByMonth(company as string, monthYear);
         
         return res.status(200).json({
             message: "Attendance for all employees retrieved successfully",

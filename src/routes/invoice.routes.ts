@@ -142,4 +142,17 @@ router.get(
   InvoiceController.getFinalizationStats
 );
 
+/* ============================================================
+   Invoice Deletion
+============================================================ */
+
+/**
+ * Delete invoice (current month only)
+ * DELETE /api/invoices/delete-invoice
+ */
+router.delete(
+  "/delete-invoice",
+  InvoiceController.deleteInvoice
+);
+
 export default router;

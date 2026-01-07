@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import { FixedSalaryModel, FixedSalaryDetails } from "../models/fixedSalary.model";
 
-export const createFixedSalary = async (payload: FixedSalaryDetails) => {
+export const createFixedSalary = async (payload: Omit<FixedSalaryDetails,'_id'>) => {
   const session = await mongoose.startSession();
   try {
     if (!payload.companyId) {
