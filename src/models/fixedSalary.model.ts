@@ -7,7 +7,7 @@ export interface FixedSalaryDetails {
     gosi: number;
     fix: number;
     saudization: number;
-    serviceCharge: number; // datasack service charge
+    serviceCharge: number; 
     exitFee: number; // optional
     exitReentryFee: number; // optional
 }
