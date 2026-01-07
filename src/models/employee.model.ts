@@ -1,6 +1,7 @@
 // Mongoose model for Employee (matches the interfaces above exactly — no extra fields)
 import { model, Model, Schema } from "mongoose";
 import { FixedSalaryDetails } from "./fixedSalary.model";
+import { isProduction } from "../utils/db";
 
 //BLUE BEAM COMPANY EMPLOYEE MODEL
 
@@ -59,4 +60,7 @@ const EmployeeSchema = new Schema<EmployeeConfigDocument>({
 // Ensure at most one config exists per companyId + iqamaNo + toDate
 EmployeeSchema.index({ companyId: 1, iqamaNo: 1, toDate: 1 }, { unique: true });
 
-export const EmployeeModel: Model<EmployeeConfigDocument> = model<EmployeeConfigDocument>("Employee", EmployeeSchema);
+export const EmployeeModel: Model<EmployeeConfigDocument> = model<EmployeeConfigDocument>(
+    isProduction ? "Employee" : "EmployeeTest", 
+    EmployeeSchema
+);

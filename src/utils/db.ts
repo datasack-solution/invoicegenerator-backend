@@ -2,6 +2,8 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import { UserModel } from "../models/user.model";
 
+export const isProduction = process.env.NODE_ENV==='production'
+
 dotenv.config();
 
 const MONGOURL = process.env.MONGOURL || "";

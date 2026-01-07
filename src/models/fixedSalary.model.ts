@@ -1,4 +1,5 @@
 import { Document, model, Model, Schema } from "mongoose";
+import { isProduction } from "../utils/db";
 
 // Matches the FixedSalaryDetails interface exactly
 export interface FixedSalaryDetails {
@@ -35,7 +36,7 @@ const FixedSalarySchema = new Schema<FixedSalaryDocument>(
 );
 
 export const FixedSalaryModel: Model<FixedSalaryDocument> = model<FixedSalaryDocument>(
-    "FixedSalary",
+    isProduction ? "FixedSalary" : "FixedSalaryTest",
     FixedSalarySchema
 );
 

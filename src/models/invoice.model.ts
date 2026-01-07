@@ -1,5 +1,6 @@
 import { Schema, model, Model } from "mongoose";
 import { Attendance, AttendanceSchema } from "./attendance.model";
+import { isProduction } from "../utils/db";
 
 /* ---------- Dynamic Component ---------- */
 
@@ -137,4 +138,7 @@ InvoiceSchema.index(
     { unique: true }
 );
 
-export const InvoiceModel: Model<Invoice> = model("Invoice", InvoiceSchema);
+export const InvoiceModel: Model<Invoice> = model(
+    isProduction ? "Invoice" : "InvoiceTest", 
+    InvoiceSchema
+);

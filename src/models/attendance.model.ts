@@ -1,4 +1,5 @@
 import { Schema, model, Model } from "mongoose";
+import { isProduction } from "../utils/db";
 
 // Attendance common for both companies
 export interface Attendance {
@@ -27,7 +28,10 @@ export const AttendanceSchema = new Schema<AttendanceDocument>({
 // Unique index for companyId + iqamaNo + monthYear
 AttendanceSchema.index({ companyId: 1, iqamaNo: 1, monthYear: 1 }, { unique: true });
 
-export const AttendanceModel: Model<AttendanceDocument> = model<AttendanceDocument>("Attendance", AttendanceSchema);
+export const AttendanceModel: Model<AttendanceDocument> = model<AttendanceDocument>(
+    isProduction ? "Attendance" : "AttendanceTest", 
+    AttendanceSchema
+);
 
 export type AttendanceModelType = AttendanceDocument;
 

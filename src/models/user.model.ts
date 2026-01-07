@@ -1,4 +1,5 @@
 import { Document, model, Model, Schema } from "mongoose";
+import { isProduction } from "../utils/db";
 
 export interface IUser {
   _id: string;
@@ -22,7 +23,7 @@ const UserSchema = new Schema<IUserDocument>(
 );
 
 export const UserModel: Model<IUserDocument> = model<IUserDocument>(
-  "User",
+  isProduction ? "User" : "UserTest",
   UserSchema
 );
 
