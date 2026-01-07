@@ -4,9 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "start": "ts-node src/app.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start:prod": "node dist/index.js",
+    "test": "jest --coverage"
   },
   "keywords": [],
   "author": "",

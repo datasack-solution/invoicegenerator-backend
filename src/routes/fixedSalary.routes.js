@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const fixedSalary_controller_1 = require("../controllers/fixedSalary.controller");
+const router = (0, express_1.Router)();
+router.post("/", fixedSalary_controller_1.createFixedSalaryController);
+router.get("/", fixedSalary_controller_1.getFixedSalaryController);
+router.put("/:id", fixedSalary_controller_1.updateFixedSalaryController);
+router.delete("/:id", fixedSalary_controller_1.deleteFixedSalaryController);
+exports.default = router;
