@@ -18,7 +18,8 @@ export interface EmployeeProfile {
 export interface EmployeeProrateSalaryDetails {
     basic: number,
     housing: number,
-    transport: number
+    transport: number,
+    prorateServiceCharge: number,
 }
 
 export interface EmployeeConfig extends EmployeeProfile, EmployeeProrateSalaryDetails, FixedSalaryDetails {
@@ -48,6 +49,8 @@ const EmployeeSchema = new Schema<EmployeeConfigDocument>({
     serviceCharge: { type: Number, required: true }, //datasack service charge
     exitFee: { type: Number, required: false }, // optional
     exitReentryFee: { type: Number, required: false }, // optional
+
+    prorateServiceCharge: {type: Number, required: false}, //This is neosoft company
 
     joiningDate: {type: Date, required: true },
     resignationDate: { type: Date, required: false },

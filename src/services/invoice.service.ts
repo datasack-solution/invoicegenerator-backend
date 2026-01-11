@@ -45,7 +45,7 @@ const generateInvoiceNo = (
 ============================================================ */
 
 const calculateTotals = (
-  baseSalary: { basic: number; housing: number; transport: number },
+  baseSalary: { basic: number; housing: number; transport: number, prorateServiceCharge: number },
   fixedCosts: Record<string, number | undefined>,
   extraComponents: InvoiceComponent[]
 ) => {
@@ -68,6 +68,7 @@ const calculateTotals = (
     baseSalary.basic +
     baseSalary.housing +
     baseSalary.transport +
+    baseSalary.prorateServiceCharge +
     totalFixedCost +
     extraEarnings;
 
@@ -290,7 +291,8 @@ export class InvoiceService {
       const baseSalary = {
         basic: Number((employeeConfig.basic * prorationRatio).toFixed(2)),
         housing: Number((employeeConfig.housing * prorationRatio).toFixed(2)),
-        transport: Number((employeeConfig.transport * prorationRatio).toFixed(2))
+        transport: Number((employeeConfig.transport * prorationRatio).toFixed(2)),
+        prorateServiceCharge: Number((employeeConfig.prorateServiceCharge * prorationRatio).toFixed(2))
       };
 
       // const fixedForUpdate = await FixedSalaryModel.findOne().lean();
