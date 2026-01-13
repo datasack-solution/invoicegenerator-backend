@@ -22,6 +22,7 @@ const EmployeeSchema = new mongoose_1.Schema({
     serviceCharge: { type: Number, required: true }, //datasack service charge
     exitFee: { type: Number, required: false }, // optional
     exitReentryFee: { type: Number, required: false }, // optional
+    prorateServiceCharge: { type: Number, required: false }, //This is neosoft company
     joiningDate: { type: Date, required: true },
     resignationDate: { type: Date, required: false },
     fromDate: { type: Date, required: true },

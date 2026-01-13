@@ -53,11 +53,16 @@ const calculateTotals = (baseSalary, fixedCosts, extraComponents) => {
     const grossEarnings = baseSalary.basic +
         baseSalary.housing +
         baseSalary.transport +
+        (baseSalary.prorateServiceCharge || 0) +
         totalFixedCost +
         extraEarnings;
     //   const totalDeductions = totalFixedCost + extraDeductions;
     const totalDeductions = 0;
     const netPayable = grossEarnings;
+    // Validate that we don't have NaN values
+    if (isNaN(grossEarnings) || isNaN(totalDeductions) || isNaN(netPayable)) {
+        throw new Error(`Invalid calculation result: grossEarnings=${grossEarnings}, totalDeductions=${totalDeductions}, netPayable=${netPayable}`);
+    }
     return {
         grossEarnings,
         totalDeductions,
@@ -207,14 +212,23 @@ class InvoiceService {
                     throw new Error("Attendance cannot be modified for past month invoices");
                 }
                 const prorationRatio = calculateProrationRatio(attendance.totalWorkingDays, attendance.daysPresent);
+                // Validate prorationRatio
+                if (isNaN(prorationRatio)) {
+                    throw new Error(`Invalid prorationRatio: totalWorkingDays=${attendance.totalWorkingDays}, daysPresent=${attendance.daysPresent}`);
+                }
                 /* --------------------------------------------
                    4. Salary snapshot (PRORATED)
                 --------------------------------------------- */
                 const baseSalary = {
-                    basic: Number((employeeConfig.basic * prorationRatio).toFixed(2)),
-                    housing: Number((employeeConfig.housing * prorationRatio).toFixed(2)),
-                    transport: Number((employeeConfig.transport * prorationRatio).toFixed(2))
+                    basic: Number(((employeeConfig.basic || 0) * prorationRatio).toFixed(2)),
+                    housing: Number(((employeeConfig.housing || 0) * prorationRatio).toFixed(2)),
+                    transport: Number(((employeeConfig.transport || 0) * prorationRatio).toFixed(2)),
+                    prorateServiceCharge: Number(((employeeConfig.prorateServiceCharge || 0) * prorationRatio).toFixed(2))
                 };
+                // Validate baseSalary calculations
+                if (isNaN(baseSalary.basic) || isNaN(baseSalary.housing) || isNaN(baseSalary.transport) || isNaN(baseSalary.prorateServiceCharge)) {
+                    throw new Error(`Invalid baseSalary calculation: basic=${baseSalary.basic}, housing=${baseSalary.housing}, transport=${baseSalary.transport}, prorateServiceCharge=${baseSalary.prorateServiceCharge}, prorationRatio=${prorationRatio}`);
+                }
                 // const fixedForUpdate = await FixedSalaryModel.findOne().lean();
                 // if (!fixedForUpdate) {
                 //   throw new Error(
@@ -222,14 +236,14 @@ class InvoiceService {
                 //   );
                 // }
                 const fixedCosts = {
-                    medicalInsurance: employeeConfig.medicalInsurance,
-                    iqamaRenewalCost: employeeConfig.iqamaRenewalCost,
-                    gosi: employeeConfig.gosi,
-                    fix: employeeConfig.fix,
-                    saudization: employeeConfig.saudization,
-                    serviceCharge: employeeConfig.serviceCharge,
-                    exitFee: employeeConfig.exitFee,
-                    exitReentryFee: employeeConfig.exitReentryFee
+                    medicalInsurance: employeeConfig.medicalInsurance || 0,
+                    iqamaRenewalCost: employeeConfig.iqamaRenewalCost || 0,
+                    gosi: employeeConfig.gosi || 0,
+                    fix: employeeConfig.fix || 0,
+                    saudization: employeeConfig.saudization || 0,
+                    serviceCharge: employeeConfig.serviceCharge || 0,
+                    exitFee: employeeConfig.exitFee || 0,
+                    exitReentryFee: employeeConfig.exitReentryFee || 0
                 };
                 const totals = calculateTotals(baseSalary, fixedCosts, extraComponents);
                 /* --------------------------------------------
