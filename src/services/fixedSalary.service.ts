@@ -1,23 +1,37 @@
 import mongoose from "mongoose";
 import { FixedSalaryModel, FixedSalaryDetails } from "../models/fixedSalary.model";
 
-export const createFixedSalary = async (payload: Omit<FixedSalaryDetails,'_id'>) => {
+export const createFixedSalary = async (
+  payload: Omit<FixedSalaryDetails, "_id">
+) => {
   const session = await mongoose.startSession();
+
   try {
     if (!payload.companyId) {
       throw new Error("companyId is required");
     }
 
-    // Check if fixed salary already exists for this company
-    const existing = await FixedSalaryModel.findOne({ companyId: payload.companyId });
+    const { _id, ...safePayload } = payload as any;
+
+    const existing = await FixedSalaryModel.findOne({
+      companyId: safePayload.companyId,
+    });
+
     if (existing) {
-      throw new Error("Fixed salary configuration already exists for this company");
+      throw new Error(
+        "Fixed salary configuration already exists for this company"
+      );
     }
 
     let created: any = null;
+
     await session.withTransaction(async () => {
-      created = await FixedSalaryModel.create([payload], { session });
+      created = await FixedSalaryModel.create(
+        [safePayload],
+        { session }
+      );
     });
+
     return created?.[0] ?? null;
   } finally {
     session.endSession();

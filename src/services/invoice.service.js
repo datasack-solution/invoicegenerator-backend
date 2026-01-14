@@ -550,5 +550,48 @@ class InvoiceService {
                 .sort({ createdAt: -1 });
         });
     }
+    /**
+     * Get invoice status for all employees in a company for a specific month
+     */
+    static getInvoiceStatusForAllEmployees(companyId, monthYear) {
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                // Get all employees for the company
+                const employees = yield employee_model_1.EmployeeModel.find({ companyId }).lean();
+                // Get all invoices for the specified month/year
+                const invoices = yield invoice_model_1.InvoiceModel.find({
+                    companyId,
+                    monthYear
+                }).lean();
+                // Get all attendance records for the specified month/year
+                const attendanceRecords = yield attendance_model_1.AttendanceModel.find({
+                    companyId,
+                    monthYear
+                }).lean();
+                // Check if the month is locked (finalized)
+                const selectedDate = (0, moment_1.default)(monthYear, 'MMMM-YYYY');
+                const currentDate = (0, moment_1.default)();
+                const isLocked = selectedDate.isBefore(currentDate, 'month');
+                // Build status map
+                const statusMap = {};
+                employees.forEach((employee) => {
+                    const iqamaNo = employee.iqamaNo;
+                    const invoice = invoices.find(inv => inv.iqamaNo === iqamaNo);
+                    const attendance = attendanceRecords.find(att => att.iqamaNo === iqamaNo);
+                    statusMap[iqamaNo] = {
+                        invoiceExist: !!invoice,
+                        attendanceExist: !!attendance,
+                        lastGeneratedAt: invoice ? invoice.generatedAt : null,
+                        isLocked
+                    };
+                });
+                return statusMap;
+            }
+            catch (error) {
+                console.error('Error getting invoice status for all employees:', error);
+                return {};
+            }
+        });
+    }
 }
 exports.InvoiceService = InvoiceService;

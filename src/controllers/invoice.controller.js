@@ -11,9 +11,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.InvoiceController = void 0;
 const invoice_service_1 = require("../services/invoice.service");
+const moment_1 = __importDefault(require("moment"));
 /* ============================================================
    Helpers
 ============================================================ */
@@ -316,22 +320,24 @@ class InvoiceController {
         });
     }
     /**
-     * GET /api/invoices/invoice-generated-status-all?company=
-     * Get invoice generation status for all employees in a company
+     * GET /api/invoices/invoice-generated-status-all?company=&monthYear=
+     * Get invoice generation status for all employees in a company for a specific month
      */
     static getInvoiceGeneratedStatusAll(req, res) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const { company } = req.query;
+                const { company, monthYear } = req.query;
                 if (!company) {
                     return res.status(400).json({ message: "Company parameter is required" });
                 }
-                // This would need to be implemented in the service
-                // For now, return a placeholder response
+                // Use current month if monthYear not provided
+                const targetMonthYear = monthYear || (0, moment_1.default)().format('MMMM-YYYY');
+                const statusMap = yield invoice_service_1.InvoiceService.getInvoiceStatusForAllEmployees(company, targetMonthYear);
                 return res.status(200).json({
                     success: true,
-                    statusMap: {},
-                    message: "Invoice status endpoint - to be implemented"
+                    statusMap,
+                    monthYear: targetMonthYear,
+                    message: `Invoice status for ${targetMonthYear}`
                 });
             }
             catch (error) {

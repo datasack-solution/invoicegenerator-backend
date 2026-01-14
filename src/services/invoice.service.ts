@@ -732,4 +732,60 @@ export class InvoiceService {
       .find({ companyId, iqamaNo })
       .sort({ createdAt: -1 });
   }
+
+  /**
+   * Get invoice status for all employees in a company for a specific month
+   */
+  static async getInvoiceStatusForAllEmployees(
+    companyId: string, 
+    monthYear: string
+  ): Promise<Record<string, {
+    invoiceExist: boolean;
+    attendanceExist: boolean;
+    lastGeneratedAt: Date | null;
+    isLocked?: boolean;
+  }>> {
+    try {
+      // Get all employees for the company
+      const employees = await EmployeeModel.find({ companyId }).lean();
+      
+      // Get all invoices for the specified month/year
+      const invoices = await InvoiceModel.find({ 
+        companyId, 
+        monthYear 
+      }).lean();
+
+      // Get all attendance records for the specified month/year
+      const attendanceRecords = await AttendanceModel.find({ 
+        companyId, 
+        monthYear 
+      }).lean();
+
+      // Check if the month is locked (finalized)
+      const selectedDate = moment(monthYear, 'MMMM-YYYY');
+      const currentDate = moment();
+      const isLocked = selectedDate.isBefore(currentDate, 'month');
+
+      // Build status map
+      const statusMap: Record<string, any> = {};
+
+      employees.forEach((employee: any) => {
+        const iqamaNo = employee.iqamaNo;
+        const invoice = invoices.find(inv => inv.iqamaNo === iqamaNo);
+        const attendance = attendanceRecords.find(att => att.iqamaNo === iqamaNo);
+
+        statusMap[iqamaNo] = {
+          invoiceExist: !!invoice,
+          attendanceExist: !!attendance,
+          lastGeneratedAt: invoice ? invoice.generatedAt : null,
+          isLocked
+        };
+      });
+
+      return statusMap;
+    } catch (error) {
+      console.error('Error getting invoice status for all employees:', error);
+      return {};
+    }
+  }
 }

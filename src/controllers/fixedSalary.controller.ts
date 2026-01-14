@@ -28,6 +28,7 @@ export const getFixedSalaryController = async (req: Request, res: Response) => {
     }
 
     const fixedSalary = await getFixedSalary(company as string);
+    console.log("fixed salary:",fixedSalary)
     return res.status(200).json({ message: "Retrieved", data: fixedSalary });
   } catch (err: any) {
     console.error(err);

@@ -19,7 +19,6 @@ export interface FixedSalaryDocument extends FixedSalaryDetails { }
 
 const FixedSalarySchema = new Schema<FixedSalaryDocument>(
     {
-        _id: {type: String, required: false},
         companyId: { type: String, required: true, unique: true }, // One fixed salary config per company
         medicalInsurance: { type: Number, required: true },
         iqamaRenewalCost: { type: Number, required: true },

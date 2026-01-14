@@ -201,6 +201,7 @@
 
 import { Request, Response } from "express";
 import { InvoiceService } from "../services/invoice.service";
+import moment from "moment";
 import { InvoiceComponent } from "../models/invoice.model";
 
 /* ============================================================
@@ -545,23 +546,30 @@ export class InvoiceController {
   }
 
   /**
-   * GET /api/invoices/invoice-generated-status-all?company=
-   * Get invoice generation status for all employees in a company
+   * GET /api/invoices/invoice-generated-status-all?company=&monthYear=
+   * Get invoice generation status for all employees in a company for a specific month
    */
   static async getInvoiceGeneratedStatusAll(req: Request, res: Response) {
     try {
-      const { company } = req.query;
+      const { company, monthYear } = req.query;
 
       if (!company) {
         return res.status(400).json({ message: "Company parameter is required" });
       }
 
-      // This would need to be implemented in the service
-      // For now, return a placeholder response
+      // Use current month if monthYear not provided
+      const targetMonthYear = monthYear as string || moment().format('MMMM-YYYY');
+
+      const statusMap = await InvoiceService.getInvoiceStatusForAllEmployees(
+        company as string, 
+        targetMonthYear
+      );
+
       return res.status(200).json({
         success: true,
-        statusMap: {},
-        message: "Invoice status endpoint - to be implemented"
+        statusMap,
+        monthYear: targetMonthYear,
+        message: `Invoice status for ${targetMonthYear}`
       });
     } catch (error: any) {
       return res.status(500).json({

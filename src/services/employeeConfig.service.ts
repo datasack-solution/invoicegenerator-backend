@@ -121,7 +121,7 @@ export const createEmployeeConfig = async (payload: CreatePayload & {
         }
 
         const { _id: fixedId, companyId: fixedCompanyId, ...fixedData } = fixed;
-        finalPayload = { ...finalPayload, ...fixedData };
+        finalPayload = { ...finalPayload, ...fixedData, fix: payload.fix, gosi:payload.gosi };
       }
 
       // 🔒 Close previous open-ended config for same company + iqamaNo

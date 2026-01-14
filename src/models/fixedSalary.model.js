@@ -4,7 +4,6 @@ exports.FixedSalaryModel = void 0;
 const mongoose_1 = require("mongoose");
 const db_1 = require("../utils/db");
 const FixedSalarySchema = new mongoose_1.Schema({
-    _id: { type: String, required: false },
     companyId: { type: String, required: true, unique: true }, // One fixed salary config per company
     medicalInsurance: { type: Number, required: true },
     iqamaRenewalCost: { type: Number, required: true },

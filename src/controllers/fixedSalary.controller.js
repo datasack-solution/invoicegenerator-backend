@@ -35,6 +35,7 @@ const getFixedSalaryController = (req, res) => __awaiter(void 0, void 0, void 0,
             return res.status(400).json({ message: "Company parameter is required" });
         }
         const fixedSalary = yield (0, fixedSalary_service_1.getFixedSalary)(company);
+        console.log("fixed salary:", fixedSalary);
         return res.status(200).json({ message: "Retrieved", data: fixedSalary });
     }
     catch (err) {

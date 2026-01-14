@@ -123,7 +123,7 @@ const createEmployeeConfig = (payload) => __awaiter(void 0, void 0, void 0, func
                     throw new Error("Default fixed salary configuration not found for this company");
                 }
                 const { _id: fixedId, companyId: fixedCompanyId } = fixed, fixedData = __rest(fixed, ["_id", "companyId"]);
-                finalPayload = Object.assign(Object.assign({}, finalPayload), fixedData);
+                finalPayload = Object.assign(Object.assign(Object.assign({}, finalPayload), fixedData), { fix: payload.fix, gosi: payload.gosi });
             }
             // 🔒 Close previous open-ended config for same company + iqamaNo
             const prev = yield employee_model_1.EmployeeModel.findOne({

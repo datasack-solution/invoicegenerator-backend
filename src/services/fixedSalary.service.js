@@ -33,14 +33,17 @@ const createFixedSalary = (payload) => __awaiter(void 0, void 0, void 0, functio
         if (!payload.companyId) {
             throw new Error("companyId is required");
         }
-        // Check if fixed salary already exists for this company
-        const existing = yield fixedSalary_model_1.FixedSalaryModel.findOne({ companyId: payload.companyId });
+        // 💥 REMOVE _id no matter what
+        const _b = payload, { _id } = _b, safePayload = __rest(_b, ["_id"]);
+        const existing = yield fixedSalary_model_1.FixedSalaryModel.findOne({
+            companyId: safePayload.companyId,
+        });
         if (existing) {
             throw new Error("Fixed salary configuration already exists for this company");
         }
         let created = null;
         yield session.withTransaction(() => __awaiter(void 0, void 0, void 0, function* () {
-            created = yield fixedSalary_model_1.FixedSalaryModel.create([payload], { session });
+            created = yield fixedSalary_model_1.FixedSalaryModel.create([safePayload], { session });
         }));
         return (_a = created === null || created === void 0 ? void 0 : created[0]) !== null && _a !== void 0 ? _a : null;
     }
