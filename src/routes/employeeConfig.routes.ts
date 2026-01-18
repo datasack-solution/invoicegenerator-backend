@@ -5,6 +5,7 @@ import {
 	recreateEmployeeConfigController,
 	getEmployeeByIqamaController,
 	getAllEmployeesController,
+	getEmployeesForPeriodController,
 	getEmployeeByIdController,
 	deleteLatestByIqamaController
 } from "../controllers/employeeConfig.controller";
@@ -28,6 +29,9 @@ router.get("/id/:id", getEmployeeByIdController);
 
 // Get all latest employees (open-ended configs)
 router.get("/", getAllEmployeesController);
+
+// Get employees valid for a specific period (month/year)
+router.get("/period", getEmployeesForPeriodController);
 
 // Delete the latest config for an iqamaNo and reopen previous
 router.delete("/iqama/:iqamaNo", deleteLatestByIqamaController);

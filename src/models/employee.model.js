@@ -10,19 +10,19 @@ const EmployeeSchema = new mongoose_1.Schema({
     name: { type: String, required: true },
     designation: { type: String },
     status: { type: String, required: true, enum: ["active", "inactive"] },
-    basic: { type: Number, required: true },
-    housing: { type: Number, required: true },
-    transport: { type: Number, required: true },
-    // fixed salary details
-    medicalInsurance: { type: Number, required: true },
-    iqamaRenewalCost: { type: Number, required: true },
-    gosi: { type: Number, required: true },
-    fix: { type: Number, required: true },
-    saudization: { type: Number, required: true },
-    serviceCharge: { type: Number, required: true }, //datasack service charge
+    basic: { type: Number, required: false }, // Optional for Neosoft
+    housing: { type: Number, required: false }, // Optional for Neosoft
+    transport: { type: Number, required: false }, // Optional for Neosoft
+    // fixed salary details - all optional for Neosoft
+    medicalInsurance: { type: Number, required: false },
+    iqamaRenewalCost: { type: Number, required: false },
+    gosi: { type: Number, required: false },
+    fix: { type: Number, required: false },
+    saudization: { type: Number, required: false },
+    serviceCharge: { type: Number, required: false }, // Required for Neosoft, optional for BlueBinaries
     exitFee: { type: Number, required: false }, // optional
     exitReentryFee: { type: Number, required: false }, // optional
-    prorateServiceCharge: { type: Number, required: false }, //This is neosoft company
+    prorateServiceCharge: { type: Number, required: false }, // This is for Neosoft company
     joiningDate: { type: Date, required: true },
     resignationDate: { type: Date, required: false },
     fromDate: { type: Date, required: true },
