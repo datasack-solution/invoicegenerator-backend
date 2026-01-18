@@ -33,8 +33,15 @@ const createFixedSalary = (payload) => __awaiter(void 0, void 0, void 0, functio
         if (!payload.companyId) {
             throw new Error("companyId is required");
         }
+<<<<<<< Updated upstream
         // Check if fixed salary already exists for this company
         const existing = yield fixedSalary_model_1.FixedSalaryModel.findOne({ companyId: payload.companyId });
+=======
+        const _b = payload, { _id } = _b, safePayload = __rest(_b, ["_id"]);
+        const existing = yield fixedSalary_model_1.FixedSalaryModel.findOne({
+            companyId: safePayload.companyId,
+        });
+>>>>>>> Stashed changes
         if (existing) {
             throw new Error("Fixed salary configuration already exists for this company");
         }

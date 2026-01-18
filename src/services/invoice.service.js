@@ -17,6 +17,7 @@ const invoice_model_1 = require("../models/invoice.model");
 const employee_model_1 = require("../models/employee.model");
 const attendance_model_1 = require("../models/attendance.model");
 const moment_1 = __importDefault(require("moment"));
+const companyUtils_1 = require("../utils/companyUtils");
 /* ============================================================
    Utilities
 ============================================================ */
@@ -42,13 +43,14 @@ const generateInvoiceNo = (iqamaNo, monthYear, version) => {
 /* ============================================================
    Calculations
 ============================================================ */
-const calculateTotals = (baseSalary, fixedCosts, extraComponents) => {
+const calculateTotals = (baseSalary, fixedCosts, extraComponents, companyId) => {
     const extraEarnings = sum(extraComponents
         .filter(c => c.type === "earning")
         .map(c => c.amount)) || 0;
     const extraDeductions = sum(extraComponents
         .filter(c => c.type === "deduction")
         .map(c => c.amount)) || 0;
+<<<<<<< Updated upstream
     const totalFixedCost = sum(Object.values(fixedCosts)) || 0;
     const grossEarnings = baseSalary.basic +
         baseSalary.housing +
@@ -58,6 +60,32 @@ const calculateTotals = (baseSalary, fixedCosts, extraComponents) => {
     //   const totalDeductions = totalFixedCost + extraDeductions;
     const totalDeductions = 0;
     const netPayable = grossEarnings;
+=======
+    let grossEarnings;
+    let totalDeductions;
+    if ((0, companyUtils_1.isNeosoftCompany)(companyId)) {
+        // Neosoft: Only prorated service charge + extra earnings
+        grossEarnings = (baseSalary.prorateServiceCharge || 0) + extraEarnings;
+        totalDeductions = extraDeductions; // Only extra deductions
+    }
+    else {
+        // BlueBinaries: Original logic
+        const totalFixedCost = sum(Object.values(fixedCosts)) || 0;
+        grossEarnings =
+            baseSalary.basic +
+                baseSalary.housing +
+                baseSalary.transport +
+                (baseSalary.prorateServiceCharge || 0) +
+                totalFixedCost +
+                extraEarnings;
+        totalDeductions = 0; // No deductions in original logic
+    }
+    const netPayable = grossEarnings - totalDeductions;
+    // Validate that we don't have NaN values
+    if (isNaN(grossEarnings) || isNaN(totalDeductions) || isNaN(netPayable)) {
+        throw new Error(`Invalid calculation result: grossEarnings=${grossEarnings}, totalDeductions=${totalDeductions}, netPayable=${netPayable}`);
+    }
+>>>>>>> Stashed changes
     return {
         grossEarnings,
         totalDeductions,
@@ -210,6 +238,7 @@ class InvoiceService {
                 /* --------------------------------------------
                    4. Salary snapshot (PRORATED)
                 --------------------------------------------- */
+<<<<<<< Updated upstream
                 const baseSalary = {
                     basic: Number((employeeConfig.basic * prorationRatio).toFixed(2)),
                     housing: Number((employeeConfig.housing * prorationRatio).toFixed(2)),
@@ -232,6 +261,53 @@ class InvoiceService {
                     exitReentryFee: employeeConfig.exitReentryFee
                 };
                 const totals = calculateTotals(baseSalary, fixedCosts, extraComponents);
+=======
+                let baseSalary;
+                let fixedCosts;
+                if ((0, companyUtils_1.isNeosoftCompany)(companyId)) {
+                    // Neosoft: Only service charge, prorated by attendance
+                    baseSalary = {
+                        basic: 0,
+                        housing: 0,
+                        transport: 0,
+                        prorateServiceCharge: Number(((employeeConfig.serviceCharge || 0) * prorationRatio).toFixed(2))
+                    };
+                    fixedCosts = {
+                        medicalInsurance: 0,
+                        iqamaRenewalCost: 0,
+                        gosi: 0,
+                        fix: 0,
+                        saudization: 0,
+                        serviceCharge: 0,
+                        exitFee: 0,
+                        exitReentryFee: 0
+                    };
+                }
+                else {
+                    // BlueBinaries: Original logic
+                    baseSalary = {
+                        basic: Number(((employeeConfig.basic || 0) * prorationRatio).toFixed(2)),
+                        housing: Number(((employeeConfig.housing || 0) * prorationRatio).toFixed(2)),
+                        transport: Number(((employeeConfig.transport || 0) * prorationRatio).toFixed(2)),
+                        prorateServiceCharge: Number(((employeeConfig.prorateServiceCharge || 0) * prorationRatio).toFixed(2))
+                    };
+                    fixedCosts = {
+                        medicalInsurance: employeeConfig.medicalInsurance || 0,
+                        iqamaRenewalCost: employeeConfig.iqamaRenewalCost || 0,
+                        gosi: employeeConfig.gosi || 0,
+                        fix: employeeConfig.fix || 0,
+                        saudization: employeeConfig.saudization || 0,
+                        serviceCharge: employeeConfig.serviceCharge || 0,
+                        exitFee: employeeConfig.exitFee || 0,
+                        exitReentryFee: employeeConfig.exitReentryFee || 0
+                    };
+                }
+                // Validate baseSalary calculations
+                if (isNaN(baseSalary.basic) || isNaN(baseSalary.housing) || isNaN(baseSalary.transport) || isNaN(baseSalary.prorateServiceCharge)) {
+                    throw new Error(`Invalid baseSalary calculation: basic=${baseSalary.basic}, housing=${baseSalary.housing}, transport=${baseSalary.transport}, prorateServiceCharge=${baseSalary.prorateServiceCharge}, prorationRatio=${prorationRatio}`);
+                }
+                const totals = calculateTotals(baseSalary, fixedCosts, extraComponents, companyId);
+>>>>>>> Stashed changes
                 /* --------------------------------------------
                    5. Replace OR Create (ATOMIC)
                 --------------------------------------------- */

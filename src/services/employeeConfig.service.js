@@ -27,6 +27,7 @@ exports.deleteLatestByIqama = exports.getById = exports.getAllLatest = exports.g
 const mongoose_1 = __importDefault(require("mongoose"));
 const employee_model_1 = require("../models/employee.model");
 const fixedSalary_model_1 = require("../models/fixedSalary.model");
+const companyUtils_1 = require("../utils/companyUtils");
 // Helpers to normalize dates to UTC day boundaries
 const startOfDayUTC = (d) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 0, 0, 0, 0));
 const endOfDayUTC = (d) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 23, 59, 59, 999));
@@ -102,6 +103,19 @@ const createEmployeeConfig = (payload) => __awaiter(void 0, void 0, void 0, func
             if (!companyId) {
                 throw new Error("companyId is required");
             }
+            // Company-specific validation
+            if ((0, companyUtils_1.isNeosoftCompany)(companyId)) {
+                const errors = (0, companyUtils_1.validateNeosoftEmployee)(cleanPayload);
+                if (errors.length > 0) {
+                    throw new Error(`Validation failed: ${errors.join(", ")}`);
+                }
+            }
+            else if ((0, companyUtils_1.isBlueBinariesCompany)(companyId)) {
+                const errors = (0, companyUtils_1.validateBlueBinariesEmployee)(cleanPayload);
+                if (errors.length > 0) {
+                    throw new Error(`Validation failed: ${errors.join(", ")}`);
+                }
+            }
             const rawFrom = cleanPayload.fromDate ? new Date(cleanPayload.fromDate) : new Date();
             const fromDate = startOfDayUTC(rawFrom);
             const toDate = cleanPayload.toDate
@@ -116,14 +130,42 @@ const createEmployeeConfig = (payload) => __awaiter(void 0, void 0, void 0, func
             cleanPayload.joiningDate = joiningDate;
             cleanPayload.resignationDate = resignationDate;
             let finalPayload = Object.assign(Object.assign({}, cleanPayload), { companyId });
-            // ✅ CONDITIONAL FIXED SALARY MERGE
-            if (useDefaultFixedSalary) {
-                const fixed = yield fixedSalary_model_1.FixedSalaryModel.findOne({ companyId }).lean();
-                if (!fixed) {
-                    throw new Error("Default fixed salary configuration not found for this company");
+            // Company-specific logic for salary configuration
+            if ((0, companyUtils_1.isNeosoftCompany)(companyId)) {
+                // For Neosoft: Only serviceCharge is required, get from fixedSalary if not provided
+                if (!finalPayload.serviceCharge && finalPayload.serviceCharge !== 0) {
+                    const fixed = yield fixedSalary_model_1.FixedSalaryModel.findOne({ companyId }).lean();
+                    if (fixed && fixed.serviceCharge) {
+                        finalPayload.serviceCharge = fixed.serviceCharge;
+                    }
                 }
+                // Set other fields to 0 or undefined for Neosoft
+                finalPayload.basic = 0;
+                finalPayload.housing = 0;
+                finalPayload.transport = 0;
+                finalPayload.medicalInsurance = 0;
+                finalPayload.iqamaRenewalCost = 0;
+                finalPayload.gosi = 0;
+                finalPayload.fix = 0;
+                finalPayload.saudization = 0;
+                finalPayload.exitFee = 0;
+                finalPayload.exitReentryFee = 0;
+            }
+            else {
+                // For BlueBinaries: Use existing logic with fixed salary merge
+                if (useDefaultFixedSalary) {
+                    const fixed = yield fixedSalary_model_1.FixedSalaryModel.findOne({ companyId }).lean();
+                    if (!fixed) {
+                        throw new Error("Default fixed salary configuration not found for this company");
+                    }
+                    const { _id: fixedId, companyId: fixedCompanyId } = fixed, fixedData = __rest(fixed, ["_id", "companyId"]);
+                    finalPayload = Object.assign(Object.assign(Object.assign({}, finalPayload), fixedData), { fix: payload.fix, gosi: payload.gosi });
+                }
+<<<<<<< Updated upstream
                 const { _id: fixedId, companyId: fixedCompanyId } = fixed, fixedData = __rest(fixed, ["_id", "companyId"]);
                 finalPayload = Object.assign(Object.assign({}, finalPayload), fixedData);
+=======
+>>>>>>> Stashed changes
             }
             // 🔒 Close previous open-ended config for same company + iqamaNo
             const prev = yield employee_model_1.EmployeeModel.findOne({

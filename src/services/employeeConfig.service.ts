@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { EmployeeModel } from "../models/employee.model";
 import { FixedSalaryModel } from "../models/fixedSalary.model";
+import { isNeosoftCompany, isBlueBinariesCompany, validateNeosoftEmployee, validateBlueBinariesEmployee } from "../utils/companyUtils";
 
 type CreatePayload = any;
 
@@ -94,6 +95,19 @@ export const createEmployeeConfig = async (payload: CreatePayload & {
         throw new Error("companyId is required");
       }
 
+      // Company-specific validation
+      if (isNeosoftCompany(companyId)) {
+        const errors = validateNeosoftEmployee(cleanPayload);
+        if (errors.length > 0) {
+          throw new Error(`Validation failed: ${errors.join(", ")}`);
+        }
+      } else if (isBlueBinariesCompany(companyId)) {
+        const errors = validateBlueBinariesEmployee(cleanPayload);
+        if (errors.length > 0) {
+          throw new Error(`Validation failed: ${errors.join(", ")}`);
+        }
+      }
+
       const rawFrom = cleanPayload.fromDate ? new Date(cleanPayload.fromDate) : new Date();
       const fromDate = startOfDayUTC(rawFrom);
       const toDate = cleanPayload.toDate
@@ -113,15 +127,42 @@ export const createEmployeeConfig = async (payload: CreatePayload & {
 
       let finalPayload = { ...cleanPayload, companyId };
 
-      // ✅ CONDITIONAL FIXED SALARY MERGE
-      if (useDefaultFixedSalary) {
-        const fixed = await FixedSalaryModel.findOne({ companyId }).lean();
-        if (!fixed) {
-          throw new Error("Default fixed salary configuration not found for this company");
+      // Company-specific logic for salary configuration
+      if (isNeosoftCompany(companyId)) {
+        // For Neosoft: Only serviceCharge is required, get from fixedSalary if not provided
+        if (!finalPayload.serviceCharge && finalPayload.serviceCharge !== 0) {
+          const fixed = await FixedSalaryModel.findOne({ companyId }).lean();
+          if (fixed && fixed.serviceCharge) {
+            finalPayload.serviceCharge = fixed.serviceCharge;
+          }
         }
+        // Set other fields to 0 or undefined for Neosoft
+        finalPayload.basic = 0;
+        finalPayload.housing = 0;
+        finalPayload.transport = 0;
+        finalPayload.medicalInsurance = 0;
+        finalPayload.iqamaRenewalCost = 0;
+        finalPayload.gosi = 0;
+        finalPayload.fix = 0;
+        finalPayload.saudization = 0;
+        finalPayload.exitFee = 0;
+        finalPayload.exitReentryFee = 0;
+      } else {
+        // For BlueBinaries: Use existing logic with fixed salary merge
+        if (useDefaultFixedSalary) {
+          const fixed = await FixedSalaryModel.findOne({ companyId }).lean();
+          if (!fixed) {
+            throw new Error("Default fixed salary configuration not found for this company");
+          }
 
+<<<<<<< Updated upstream
         const { _id: fixedId, companyId: fixedCompanyId, ...fixedData } = fixed;
         finalPayload = { ...finalPayload, ...fixedData };
+=======
+          const { _id: fixedId, companyId: fixedCompanyId, ...fixedData } = fixed;
+          finalPayload = { ...finalPayload, ...fixedData, fix: payload.fix, gosi: payload.gosi };
+        }
+>>>>>>> Stashed changes
       }
 
       // 🔒 Close previous open-ended config for same company + iqamaNo
