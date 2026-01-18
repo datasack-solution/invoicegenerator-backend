@@ -16,16 +16,10 @@ export interface EmployeeProfile {
 }
 
 export interface EmployeeProrateSalaryDetails {
-<<<<<<< Updated upstream
-    basic: number,
-    housing: number,
-    transport: number
-=======
     basic?: number, // Optional for Neosoft
     housing?: number, // Optional for Neosoft
     transport?: number, // Optional for Neosoft
     prorateServiceCharge?: number, // For Neosoft proration
->>>>>>> Stashed changes
 }
 
 export interface EmployeeConfig extends EmployeeProfile, EmployeeProrateSalaryDetails, FixedSalaryDetails {
@@ -56,11 +50,8 @@ const EmployeeSchema = new Schema<EmployeeConfigDocument>({
     exitFee: { type: Number, required: false }, // optional
     exitReentryFee: { type: Number, required: false }, // optional
 
-<<<<<<< Updated upstream
-=======
     prorateServiceCharge: {type: Number, required: false}, // This is for Neosoft company
 
->>>>>>> Stashed changes
     joiningDate: {type: Date, required: true },
     resignationDate: { type: Date, required: false },
     fromDate: { type: Date, required: true },

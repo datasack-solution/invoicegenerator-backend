@@ -22,10 +22,7 @@ const EmployeeSchema = new mongoose_1.Schema({
     serviceCharge: { type: Number, required: false }, // Required for Neosoft, optional for BlueBinaries
     exitFee: { type: Number, required: false }, // optional
     exitReentryFee: { type: Number, required: false }, // optional
-<<<<<<< Updated upstream
-=======
     prorateServiceCharge: { type: Number, required: false }, // This is for Neosoft company
->>>>>>> Stashed changes
     joiningDate: { type: Date, required: true },
     resignationDate: { type: Date, required: false },
     fromDate: { type: Date, required: true },

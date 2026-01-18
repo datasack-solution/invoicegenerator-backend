@@ -9,7 +9,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteLatestByIqamaController = exports.getEmployeeByIdController = exports.getAllEmployeesController = exports.getEmployeeByIqamaController = exports.recreateEmployeeConfigController = exports.updateEmployeeConfigController = exports.createEmployeeConfigController = void 0;
+exports.deleteLatestByIqamaController = exports.getEmployeeByIdController = exports.getEmployeesForPeriodController = exports.getAllEmployeesController = exports.getEmployeeByIqamaController = exports.recreateEmployeeConfigController = exports.updateEmployeeConfigController = exports.createEmployeeConfigController = void 0;
 const employeeConfig_service_1 = require("../services/employeeConfig.service");
 const createEmployeeConfigController = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -91,6 +91,24 @@ const getAllEmployeesController = (req, res) => __awaiter(void 0, void 0, void 0
     }
 });
 exports.getAllEmployeesController = getAllEmployeesController;
+const getEmployeesForPeriodController = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { company, monthYear } = req.query;
+        if (!company) {
+            return res.status(400).json({ message: "Company parameter is required" });
+        }
+        if (!monthYear) {
+            return res.status(400).json({ message: "monthYear parameter is required (format: 'January-2024')" });
+        }
+        const data = yield (0, employeeConfig_service_1.getEmployeesForPeriod)(company, monthYear);
+        return res.status(200).json({ data });
+    }
+    catch (err) {
+        console.error(err);
+        return res.status(500).json({ message: err.message || "Internal server error" });
+    }
+});
+exports.getEmployeesForPeriodController = getEmployeesForPeriodController;
 const getEmployeeByIdController = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { id } = req.params;

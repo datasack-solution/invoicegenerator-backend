@@ -2,8 +2,8 @@ import { InvoiceModel, InvoiceComponent } from "../models/invoice.model";
 import { EmployeeModel } from "../models/employee.model";
 import { AttendanceModel } from "../models/attendance.model";
 import moment from "moment";
-import { FixedSalaryModel } from "../models/fixedSalary.model";
 import { isNeosoftCompany } from "../utils/companyUtils";
+import { getEmployeesForPeriod } from "./employeeConfig.service";
 
 /* ============================================================
    Utilities
@@ -36,9 +36,10 @@ const calculateProrationRatio = (
 const generateInvoiceNo = (
   iqamaNo: string,
   monthYear: string,
-  version: number
+  version: number,
+  company: string,
 ) => {
-  return `INV-${monthYear}-${iqamaNo}-${version}`;
+  return `INV-${company}-${monthYear}-${iqamaNo}-${version}`;
 };
 
 /* ============================================================
@@ -46,7 +47,7 @@ const generateInvoiceNo = (
 ============================================================ */
 
 const calculateTotals = (
-  baseSalary: { basic: number; housing: number; transport: number },
+  baseSalary: { basic: number; housing: number; transport: number; prorateServiceCharge?: number },
   fixedCosts: Record<string, number | undefined>,
   extraComponents: InvoiceComponent[],
   companyId: string
@@ -83,22 +84,7 @@ const calculateTotals = (
     totalDeductions = 0; // No deductions in original logic
   }
 
-<<<<<<< Updated upstream
-  const grossEarnings =
-    baseSalary.basic +
-    baseSalary.housing +
-    baseSalary.transport +
-    totalFixedCost +
-    extraEarnings;
-
-
-  //   const totalDeductions = totalFixedCost + extraDeductions;
-  const totalDeductions = 0
-
-  const netPayable = grossEarnings;
-=======
   const netPayable = grossEarnings - totalDeductions;
->>>>>>> Stashed changes
 
   return {
     grossEarnings,
@@ -123,7 +109,6 @@ export class InvoiceService {
   private static async finalizePastInvoices(companyId: string): Promise<void> {
     try {
       const now = moment();
-      const currentMonthYear = now.format("MMMM-YYYY");
 
       // Get all unique month-years that are before current month for this company
       const pastMonthYears = await InvoiceModel.distinct("monthYear", {
@@ -232,19 +217,13 @@ export class InvoiceService {
        2. Employee configuration (MATCH MONTH)
     --------------------------------------------- */
 
-    const monthStart = invoiceMonth.startOf("month").add(1, 'day').toDate();
-    const monthEnd = invoiceMonth.endOf("month").toDate();
-
-    const employeeConfig = await EmployeeModel.findOne({
-      companyId,
-      iqamaNo,
-      fromDate: { $lte: monthEnd },
-      toDate: { $gte: monthStart }
-    }, null, session);
+    // Use the new period-based employee lookup
+    const employees = await getEmployeesForPeriod(companyId, monthYear);
+    const employeeConfig = employees.find(emp => emp.iqamaNo === iqamaNo);
 
     if (!employeeConfig) {
       throw new Error(
-        `Employee configuration not found for ${iqamaNo} - ${monthYear}`
+        `Employee configuration not found for ${iqamaNo} - ${monthYear}. Employee may not have been active during this period.`
       );
     }
 
@@ -257,7 +236,8 @@ export class InvoiceService {
     const invoiceNo = generateInvoiceNo(
       iqamaNo,
       monthYear,
-      version
+      version,
+      companyId
     );
 
 
@@ -310,33 +290,12 @@ export class InvoiceService {
          4. Salary snapshot (PRORATED)
       --------------------------------------------- */
 
-<<<<<<< Updated upstream
-      const baseSalary = {
-        basic: Number((employeeConfig.basic * prorationRatio).toFixed(2)),
-        housing: Number((employeeConfig.housing * prorationRatio).toFixed(2)),
-        transport: Number((employeeConfig.transport * prorationRatio).toFixed(2))
+      let baseSalary: {
+        basic: number;
+        housing: number;
+        transport: number;
+        prorateServiceCharge?: number;
       };
-
-      // const fixedForUpdate = await FixedSalaryModel.findOne().lean();
-
-      // if (!fixedForUpdate) {
-      //   throw new Error(
-      //     "Fixed salary configuration not found"
-      //   );
-      // }
-
-      const fixedCosts = {
-        medicalInsurance: employeeConfig.medicalInsurance,
-        iqamaRenewalCost: employeeConfig.iqamaRenewalCost,
-        gosi: employeeConfig.gosi,
-        fix: employeeConfig.fix,
-        saudization: employeeConfig.saudization,
-        serviceCharge: employeeConfig.serviceCharge,
-        exitFee: employeeConfig.exitFee,
-        exitReentryFee: employeeConfig.exitReentryFee
-      };
-=======
-      let baseSalary: any;
       let fixedCosts: any;
 
       if (isNeosoftCompany(companyId)) {
@@ -354,7 +313,7 @@ export class InvoiceService {
           gosi: 0,
           fix: 0,
           saudization: 0,
-          serviceCharge: 0,
+          serviceCharge: Number(((employeeConfig.serviceCharge || 0) * prorationRatio).toFixed(2)),
           exitFee: 0,
           exitReentryFee: 0
         };
@@ -363,8 +322,7 @@ export class InvoiceService {
         baseSalary = {
           basic: Number(((employeeConfig.basic || 0) * prorationRatio).toFixed(2)),
           housing: Number(((employeeConfig.housing || 0) * prorationRatio).toFixed(2)),
-          transport: Number(((employeeConfig.transport || 0) * prorationRatio).toFixed(2)),
-          prorateServiceCharge: Number(((employeeConfig.prorateServiceCharge || 0) * prorationRatio).toFixed(2))
+          transport: Number(((employeeConfig.transport || 0) * prorationRatio).toFixed(2))
         };
 
         fixedCosts = {
@@ -380,10 +338,13 @@ export class InvoiceService {
       }
 
       // Validate baseSalary calculations
-      if (isNaN(baseSalary.basic) || isNaN(baseSalary.housing) || isNaN(baseSalary.transport) || isNaN(baseSalary.prorateServiceCharge)) {
-        throw new Error(`Invalid baseSalary calculation: basic=${baseSalary.basic}, housing=${baseSalary.housing}, transport=${baseSalary.transport}, prorateServiceCharge=${baseSalary.prorateServiceCharge}, prorationRatio=${prorationRatio}`);
+      if (isNaN(baseSalary.basic) || isNaN(baseSalary.housing) || isNaN(baseSalary.transport)) {
+        throw new Error(`Invalid baseSalary calculation: basic=${baseSalary.basic}, housing=${baseSalary.housing}, transport=${baseSalary.transport}, prorationRatio=${prorationRatio}`);
       }
->>>>>>> Stashed changes
+      
+      if (baseSalary.prorateServiceCharge !== undefined && isNaN(baseSalary.prorateServiceCharge)) {
+        throw new Error(`Invalid prorateServiceCharge calculation: ${baseSalary.prorateServiceCharge}, prorationRatio=${prorationRatio}`);
+      }
 
       const totals = calculateTotals(
         baseSalary,

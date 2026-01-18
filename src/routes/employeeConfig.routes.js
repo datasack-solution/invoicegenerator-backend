@@ -15,6 +15,8 @@ router.get("/iqama/:iqamaNo", employeeConfig_controller_1.getEmployeeByIqamaCont
 router.get("/id/:id", employeeConfig_controller_1.getEmployeeByIdController);
 // Get all latest employees (open-ended configs)
 router.get("/", employeeConfig_controller_1.getAllEmployeesController);
+// Get employees valid for a specific period (month/year)
+router.get("/period", employeeConfig_controller_1.getEmployeesForPeriodController);
 // Delete the latest config for an iqamaNo and reopen previous
 router.delete("/iqama/:iqamaNo", employeeConfig_controller_1.deleteLatestByIqamaController);
 exports.default = router;

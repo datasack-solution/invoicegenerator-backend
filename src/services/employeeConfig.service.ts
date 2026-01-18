@@ -155,14 +155,9 @@ export const createEmployeeConfig = async (payload: CreatePayload & {
             throw new Error("Default fixed salary configuration not found for this company");
           }
 
-<<<<<<< Updated upstream
-        const { _id: fixedId, companyId: fixedCompanyId, ...fixedData } = fixed;
-        finalPayload = { ...finalPayload, ...fixedData };
-=======
           const { _id: fixedId, companyId: fixedCompanyId, ...fixedData } = fixed;
           finalPayload = { ...finalPayload, ...fixedData, fix: payload.fix, gosi: payload.gosi };
         }
->>>>>>> Stashed changes
       }
 
       // 🔒 Close previous open-ended config for same company + iqamaNo
@@ -308,6 +303,101 @@ export const getByIqama = async (companyId: string, iqamaNo: string) => {
 // Get latest (open-ended) configs for all employees in a company
 export const getAllLatest = async (companyId: string) => {
   return EmployeeModel.find({ companyId, toDate: OPEN_ENDED_DATE }).lean();
+};
+
+// Get employees valid for a specific month/year period
+export const getEmployeesForPeriod = async (companyId: string, monthYear: string) => {
+  // Parse monthYear (e.g., "January-2024") to get the period boundaries
+  const [monthName, yearStr] = monthYear.split('-');
+  const year = parseInt(yearStr);
+  const monthIndex = new Date(`${monthName} 1, ${year}`).getMonth(); // 0-based month
+  
+  // Get the first day of the month and last day of the month in UTC
+  const periodStart = startOfDayUTC(new Date(Date.UTC(year, monthIndex, 1)));
+  const periodEnd = endOfDayUTC(new Date(Date.UTC(year, monthIndex + 1, 0))); // Last day of month
+  
+  console.log(`🔍 DEBUG: Querying employees for period: ${monthYear}`);
+  console.log(`📅 DEBUG: Period boundaries: ${periodStart.toISOString()} to ${periodEnd.toISOString()}`);
+  
+  // Find ALL employee configs for this company
+  const allEmployees = await EmployeeModel.find({ companyId }).sort({ iqamaNo: 1, fromDate: 1 }).lean();
+  
+  console.log(`📋 DEBUG: Found ${allEmployees.length} total employee configs for company ${companyId}`);
+  
+  // Group by iqamaNo and find the correct config for each employee
+  const employeeMap = new Map();
+  
+  // Group configs by iqamaNo first
+  const configsByEmployee = new Map();
+  allEmployees.forEach(emp => {
+    if (!configsByEmployee.has(emp.iqamaNo)) {
+      configsByEmployee.set(emp.iqamaNo, []);
+    }
+    configsByEmployee.get(emp.iqamaNo).push(emp);
+  });
+  
+  console.log(`👥 DEBUG: Found configs for ${configsByEmployee.size} unique employees`);
+  
+  // For each employee, find the config that was active during the requested period
+  configsByEmployee.forEach((configs, iqamaNo) => {
+    console.log(`\n👤 DEBUG: Processing employee ${iqamaNo} with ${configs.length} configs:`);
+    
+    // Sort configs by fromDate to process them chronologically
+    configs.sort((a:any, b:any) => new Date(a.fromDate).getTime() - new Date(b.fromDate).getTime());
+    
+    configs.forEach((config:any, index:any) => {
+      const configStart = new Date(config.fromDate);
+      const configEnd = new Date(config.toDate);
+      console.log(`   Config ${index + 1}: ${configStart.toISOString()} to ${configEnd.toISOString()}, Basic: ${config.basic}`);
+    });
+    
+    let activeConfig = null;
+    
+    for (const config of configs) {
+      const configStart = new Date(config.fromDate);
+      const configEnd = new Date(config.toDate);
+      
+      // Check if this config was active during any part of the requested period
+      // Config is active if:
+      // 1. It starts before or during the period (configStart <= periodEnd)
+      // 2. It ends after or during the period (configEnd >= periodStart)
+      const startsBeforeOrDuringPeriod = configStart <= periodEnd;
+      const endsAfterOrDuringPeriod = configEnd >= periodStart;
+      const isActiveInPeriod = startsBeforeOrDuringPeriod && endsAfterOrDuringPeriod;
+      
+      console.log(`   Config check: starts <= periodEnd? ${startsBeforeOrDuringPeriod}, ends >= periodStart? ${endsAfterOrDuringPeriod}, active? ${isActiveInPeriod}`);
+      
+      if (isActiveInPeriod) {
+        // This config overlaps with the period
+        if (!activeConfig) {
+          console.log(`   ✅ Setting as first active config`);
+          activeConfig = config;
+        } else {
+          // If we have multiple overlapping configs, choose the one that started later
+          // This handles the case where a new config starts during the month
+          const activeConfigStart = new Date(activeConfig.fromDate);
+          if (configStart > activeConfigStart) {
+            console.log(`   🔄 Replacing with newer config (${configStart.toISOString()} > ${activeConfigStart.toISOString()})`);
+            activeConfig = config;
+          } else {
+            console.log(`   ⏭️ Keeping existing config (${configStart.toISOString()} <= ${activeConfigStart.toISOString()})`);
+          }
+        }
+      }
+    }
+    
+    if (activeConfig) {
+      console.log(`   🎯 Final choice for ${iqamaNo}: Basic ${activeConfig.basic}, Period: ${new Date(activeConfig.fromDate).toISOString()} to ${new Date(activeConfig.toDate).toISOString()}`);
+      employeeMap.set(iqamaNo, activeConfig);
+    } else {
+      console.log(`   ❌ No active config found for ${iqamaNo} in period ${monthYear}`);
+    }
+  });
+  
+  const result = Array.from(employeeMap.values());
+  console.log(`\n🎯 DEBUG: Final result: ${result.length} employees for ${monthYear}`);
+  
+  return result;
 };
 
 // Get by document id
